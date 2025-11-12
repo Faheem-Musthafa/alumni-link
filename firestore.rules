@@ -1,0 +1,172 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Allow all read access for admin collections (temporary for admin without Firebase Auth)
+    function allowAdminRead() {
+      return true;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if true; // Allow read for admin dashboard
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if true; // Allow update for admin operations
+      allow delete: if true; // Allow delete for admin operations
+    }
+    
+    // Profiles collection
+    match /profiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(profileId);
+      allow update: if isOwner(profileId);
+      allow delete: if false;
+    }
+    
+    // Mentorship requests
+    match /mentorshipRequests/{requestId} {
+      allow read: if true; // Allow read for admin
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+    
+    // Conversations
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow delete: if false;
+      
+      // Typing indicators subcollection
+      match /typing/{userId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        allow write: if isAuthenticated() && isOwner(userId);
+        allow delete: if isAuthenticated() && isOwner(userId);
+      }
+    }
+    
+    // User presence
+    match /userPresence/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Messages - Allow querying if authenticated (permissive for conversation queries)
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.senderId ||
+        request.auth.uid == resource.data.receiverId
+      );
+      allow list: if isAuthenticated(); // Allow querying, filtered by where clause
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.senderId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.senderId ||
+        request.auth.uid == resource.data.receiverId
+      );
+      allow delete: if false;
+    }
+    
+    // Job postings
+    match /jobPostings/{jobId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.postedBy || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.postedBy || isAdmin());
+    }
+    
+    // Job applications
+    match /jobApplications/{applicationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if false;
+    }
+    
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    // Verification Requests
+    match /verificationRequests/{requestId} {
+      allow read: if true; // Allow read for admin
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+    
+    // User Reports
+    match /userReports/{reportId} {
+      allow read: if true; // Allow read for admin
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+    
+    // Admin Activity Logs
+    match /adminActivityLogs/{logId} {
+      allow read: if true; // Allow read for admin
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+    
+    // Jobs collection
+    match /jobs/{jobId} {
+      allow read: if true; // Allow read for admin
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+    
+    // Blocked users
+    match /blockedUsers/{blockId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.blockerId ||
+        request.auth.uid == resource.data.blockedUserId
+      );
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.blockerId;
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.blockerId;
+      allow delete: if false;
+    }
+    
+    // Chat reports
+    match /chatReports/{reportId} {
+      allow read: if true; // Allow read for admin
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.reporterId;
+      allow update: if true; // Allow update for admin
+      allow delete: if false;
+    }
+    
+    // Link Previews (cached for 7 days)
+    match /linkPreviews/{previewId} {
+      allow read: if isAuthenticated(); // Any authenticated user can read cached previews
+      allow create: if isAuthenticated(); // Any authenticated user can cache new previews
+      allow update: if false; // Previews are immutable once cached
+      allow delete: if isAuthenticated(); // Allow cleanup of expired previews
+    }
+  }
+}
+

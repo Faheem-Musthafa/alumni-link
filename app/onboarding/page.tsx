@@ -1,0 +1,1142 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ActionButton } from "@/components/ui/action-button";
+import { RoleBasedGradient, RoleBadge } from "@/components/ui/role-based-gradient";
+import { useToast } from "@/hooks/use-toast";
+import { handleError } from "@/lib/utils/error-handling";
+import { 
+  GraduationCap, 
+  Upload, 
+  Phone, 
+  CheckCircle2, 
+  AlertCircle,
+  Briefcase,
+  Target,
+  ArrowRight,
+  ArrowLeft,
+  Sparkles
+} from "lucide-react";
+import { submitVerificationRequest } from "@/lib/firebase/verification";
+import { updateUserProfile } from "@/lib/firebase/profiles";
+import { UserRole } from "@/types";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
+
+type Role = "student" | "alumni" | "aspirant";
+
+interface FormData {
+  role: Role | "";
+  fullName: string;
+  email: string;
+  location: string;
+  college: string;
+  degree: string;
+  branch: string;
+  passingYear: string;
+  company: string;
+  designation: string;
+  entranceExam: string;
+  targetCollege: string;
+  linkedin: string;
+  skills: string[];
+  bio: string;
+  yearsOfExperience: number;
+  interests: string[];
+  lookingFor: string[];
+  phoneNumber: string;
+  idCardFront?: File;
+  idCardBack?: File;
+  additionalDocuments?: File[];
+}
+
+const initialFormData: FormData = {
+  role: "",
+  fullName: "",
+  email: "",
+  location: "",
+  college: "",
+  degree: "",
+  branch: "",
+  passingYear: "",
+  company: "",
+  designation: "",
+  entranceExam: "",
+  targetCollege: "",
+  linkedin: "",
+  skills: [],
+  bio: "",
+  yearsOfExperience: 0,
+  interests: [],
+  lookingFor: [],
+  phoneNumber: "",
+};
+
+export default function OnboardingPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [skillInput, setSkillInput] = useState("");
+  const [idCardPreview, setIdCardPreview] = useState<string>("");
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+      return;
+    }
+
+    // Auto-fill user data and show welcome message
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        role: "", // Explicitly ensure no default role
+        fullName: user.displayName || "",
+        email: user.email || "",
+      }));
+
+      // Show welcome message only once
+      const hasShownWelcome = sessionStorage.getItem('onboarding_welcome');
+      if (!hasShownWelcome) {
+        setTimeout(() => {
+          toast({
+            title: `Welcome, ${user.displayName || 'there'}! 👋`,
+            description: "Let's set up your profile in just a few steps",
+          });
+          sessionStorage.setItem('onboarding_welcome', 'true');
+        }, 500);
+      }
+    }
+
+    // If user is already approved, redirect to dashboard
+    if (user && user.verificationStatus === "approved") {
+      toast({
+        title: "Already Verified! ✅",
+        description: "Taking you to your dashboard...",
+      });
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
+      return;
+    }
+  }, [user, authLoading, router, toast]);
+
+  // Calculate progress
+  const totalSteps = formData.role === "student" ? 4 : formData.role === "alumni" ? 5 : formData.role === "aspirant" ? 5 : 1;
+  const progress = (currentStep / totalSteps) * 100;
+
+  // Update form field
+  const updateField = (field: keyof FormData, value: FormData[keyof FormData]) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  // Auto-save progress (debounced)
+  useEffect(() => {
+    if (currentStep === 1 || !formData.role) return;
+    
+    const timer = setTimeout(async () => {
+      try {
+        setSaveStatus("saving");
+        // Add your auto-save API call here
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      } catch {
+        setSaveStatus("idle");
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [formData, currentStep]);
+
+  // Validate current step with friendly messages
+  const validateStep = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (currentStep === 1) {
+      if (!formData.role) {
+        newErrors.role = "👆 Pick your role to continue!";
+        toast({
+          title: "Just one more thing! 😊",
+          description: "Please select your role to get started",
+        });
+      }
+    }
+
+    if (currentStep === 2) {
+      if (!formData.fullName.trim()) {
+        newErrors.fullName = "We'd love to know your name!";
+      }
+      
+      if (formData.role === "student" || formData.role === "alumni") {
+        if (!formData.college.trim()) {
+          newErrors.college = "Which college are you from?";
+        }
+        if (!formData.passingYear.trim()) {
+          newErrors.passingYear = "What year did/will you graduate?";
+        }
+      }
+      
+      if (formData.role === "aspirant") {
+        if (!formData.entranceExam.trim()) {
+          newErrors.entranceExam = "Which exam are you preparing for?";
+        }
+      }
+
+      if (Object.keys(newErrors).length > 0) {
+        toast({
+          title: "Almost there! 📝",
+          description: "Please fill in the required fields",
+        });
+      }
+    }
+
+    if (currentStep === 3 && formData.role === "alumni") {
+      if (!formData.company.trim()) {
+        newErrors.company = "Where do you work?";
+        toast({
+          title: "Tell us about your work! 💼",
+          description: "Your current company helps students understand career paths",
+        });
+      }
+    }
+
+    // Verification step validation
+    if ((currentStep === 4 && formData.role === "student") || (currentStep === 5 && (formData.role === "alumni" || formData.role === "aspirant"))) {
+      if (formData.role === "student" || formData.role === "alumni") {
+        if (!formData.idCardFront) {
+          newErrors.idCardFront = "Please upload your ID card";
+          toast({
+            title: "ID Card Required 📸",
+            description: "We need your ID card to verify your profile",
+          });
+        }
+      }
+      
+      if (formData.role === "aspirant") {
+        if (!formData.phoneNumber.trim()) {
+          newErrors.phoneNumber = "Phone number is required";
+        } else {
+          const phoneRegex = /^\+\d{1,3}\s?\d{8,15}$/;
+          if (!phoneRegex.test(formData.phoneNumber)) {
+            newErrors.phoneNumber = "Format: +91 9876543210";
+            toast({
+              title: "Phone Format 📱",
+              description: "Please include country code (e.g., +91 for India)",
+            });
+          }
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Navigate steps with encouraging messages
+  const nextStep = () => {
+    if (validateStep()) {
+      const nextStepNum = Math.min(currentStep + 1, totalSteps);
+      setCurrentStep(nextStepNum);
+      
+      // Encouraging messages based on progress
+      const progress = (nextStepNum / totalSteps) * 100;
+      
+      if (progress === 100) {
+        toast({
+          title: "Final Step! 🎯",
+          description: "You're almost done! Just verification left.",
+        });
+      } else if (progress >= 75) {
+        toast({
+          title: "Almost There! 🌟",
+          description: "Great progress! Keep going.",
+        });
+      } else if (progress >= 50) {
+        toast({
+          title: "Halfway There! 🚀",
+          description: "You're doing great!",
+        });
+      } else if (nextStepNum === 2) {
+        toast({
+          title: "Nice Choice! ✨",
+          description: "Now let's get to know you better",
+        });
+      }
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  // Handle file upload with friendly feedback
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File Too Large 📦",
+          description: "Please choose an image under 5MB. Try compressing it!",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type 🤔",
+          description: "Please upload a JPG, PNG, or PDF file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Success feedback
+      toast({
+        title: "Image Uploaded! ✅",
+        description: `${file.name} loaded successfully`,
+      });
+
+      updateField("idCardFront", file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setIdCardPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Submit form
+  const handleSubmit = async () => {
+    if (!validateStep()) return;
+
+    // Check if user is available
+    if (!user || !user.uid) {
+      toast({
+        title: "Oops! 😅",
+        description: "Please wait a moment while we load your information...",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate required data based on role
+    if (formData.role === "student" || formData.role === "alumni") {
+      if (!formData.idCardFront) {
+        toast({
+          title: "Missing ID Card",
+          description: "Please upload your ID card to continue",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (formData.role === "aspirant") {
+      if (!formData.phoneNumber) {
+        toast({
+          title: "Missing Phone Number",
+          description: "Please enter your phone number to continue",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      // Show friendly loading message
+      toast({
+        title: "Processing... 🚀",
+        description: "Submitting your information securely...",
+      });
+
+      // Submit verification request with validated data
+      await submitVerificationRequest({
+        userId: user.uid,
+        userName: user.displayName || formData.fullName || "User",
+        userEmail: user.email || formData.email || "",
+        userRole: formData.role as UserRole,
+        verificationType: formData.role === "aspirant" ? "phone_otp" : "id_card",
+        file: formData.idCardFront,
+        phoneNumber: formData.phoneNumber || "",
+        additionalInfo: JSON.stringify(formData),
+      });
+
+      // Update user profile with onboarding data
+      const profileData: any = {
+        verified: false, // Will be set to true when admin approves
+        bio: formData.bio || "",
+        skills: formData.skills || [],
+        location: formData.location || "",
+        linkedIn: formData.linkedin || "",
+      };
+
+      // Add role-specific data
+      if (formData.role === "student" || formData.role === "alumni") {
+        profileData.college = formData.college || "";
+        profileData.course = formData.degree || "";
+        profileData.specialization = formData.branch || "";
+        
+        if (formData.passingYear) {
+          const year = parseInt(formData.passingYear);
+          if (!isNaN(year)) {
+            profileData.graduationYear = year;
+          }
+        }
+      }
+
+      // Add alumni-specific professional data
+      if (formData.role === "alumni") {
+        profileData.currentCompany = formData.company || "";
+        profileData.jobTitle = formData.designation || "";
+        profileData.experience = formData.yearsOfExperience || 0;
+      }
+
+      // Save profile data to Firestore
+      await updateUserProfile(user.uid, profileData);
+
+      // Update user document with onboarding completion
+      if (db) {
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          onboardingComplete: true,
+          onboardingCompletedAt: serverTimestamp(),
+          phoneNumber: formData.phoneNumber || "",
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      // Success message
+      toast({
+        title: "Success! 🎉",
+        description: "Your profile is being reviewed. You'll hear from us soon!",
+      });
+
+      // Small delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Redirect to dashboard
+      window.location.href = "/dashboard";
+    } catch (error: unknown) {
+      handleError(error, "Submission failed");
+      
+      const errorMessage = error instanceof Error ? error.message : "Something went wrong";
+      
+      toast({
+        title: "Submission Failed 😔",
+        description: errorMessage.includes("Firebase") 
+          ? "We're having trouble connecting. Please try again in a moment."
+          : errorMessage,
+        variant: "destructive",
+      });
+      
+      setIsSubmitting(false);
+    }
+  };
+
+  // Skills management with friendly feedback
+  const addSkill = () => {
+    const trimmed = skillInput.trim();
+    
+    if (!trimmed) return;
+    
+    if (formData.skills.includes(trimmed)) {
+      toast({
+        title: "Already Added! 🎯",
+        description: `"${trimmed}" is already in your skills`,
+      });
+      setSkillInput("");
+      return;
+    }
+    
+    if (formData.skills.length >= 20) {
+      toast({
+        title: "That's Impressive! 🌟",
+        description: "You can add up to 20 skills. Consider removing some first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateField("skills", [...formData.skills, trimmed]);
+    setSkillInput("");
+    
+    // Encouraging message
+    if (formData.skills.length === 0) {
+      toast({
+        title: "Great Start! 🚀",
+        description: "Keep adding skills that make you unique",
+      });
+    }
+  };
+
+  const removeSkill = (skillToRemove: string) => {
+    updateField("skills", formData.skills.filter(skill => skill !== skillToRemove));
+  };
+
+  const handleSkillKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addSkill();
+    }
+  };
+
+  // Render role selection with enhanced UI
+  const renderRoleSelection = () => (
+    <div className="space-y-8">
+      <div className="text-center space-y-3">
+        <h2 className="text-3xl font-bold text-foreground">
+          Choose Your Role
+        </h2>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Select what best describes you to personalize your experience
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {[
+          {
+            role: "student" as Role,
+            icon: GraduationCap,
+            title: "Student",
+            description: "Currently pursuing your degree",
+            features: ["Connect with alumni", "Find mentors", "Explore opportunities"]
+          },
+          {
+            role: "alumni" as Role,
+            icon: Briefcase,
+            title: "Alumni",
+            description: "Graduated and working professional",
+            features: ["Mentor students", "Share experiences", "Give back to community"]
+          },
+          {
+            role: "aspirant" as Role,
+            icon: Target,
+            title: "Aspirant",
+            description: "Preparing for entrance exams",
+            features: ["Get guidance", "Study resources", "Preparation tips"]
+          },
+        ].map((option) => {
+          const isSelected = formData.role === option.role;
+          return (
+            <div
+              key={option.role}
+              className={`relative group cursor-pointer transition-all duration-300 ${
+                isSelected ? "scale-105" : "hover:scale-102"
+              }`}
+              onClick={() => updateField("role", option.role)}
+            >
+              <Card
+                className={`h-full border-2 transition-all ${
+                  isSelected
+                    ? "border-transparent shadow-xl"
+                    : "border-neutral-200 hover:border-neutral-300 hover:shadow-md"
+                }`}
+              >
+                {isSelected && (
+                  <RoleBasedGradient 
+                    role={option.role} 
+                    variant="solid" 
+                    className="absolute -inset-0.5 rounded-lg -z-10"
+                  />
+                )}
+                <CardContent className={`p-6 space-y-4 relative ${isSelected ? "bg-white" : ""}`}>
+                  <div className={`w-16 h-16 mx-auto rounded-xl flex items-center justify-center ${
+                    isSelected ? "bg-gray-100" : "bg-neutral-100"
+                  }`}>
+                    <option.icon className={`h-8 w-8 ${
+                      isSelected ? "text-gray-900" : "text-neutral-700"
+                    }`} />
+                  </div>
+                  
+                  <div className="text-center space-y-2">
+                    <h3 className={`font-bold text-xl ${
+                      isSelected ? "text-gray-900" : "text-foreground"
+                    }`}>
+                      {option.title}
+                    </h3>
+                    <p className={`text-sm font-medium ${
+                      isSelected ? "text-gray-800" : "text-muted-foreground"
+                    }`}>
+                      {option.description}
+                    </p>
+                  </div>
+
+                  <ul className="space-y-2">
+                    {option.features.map((feature, idx) => (
+                      <li key={idx} className={`flex items-center gap-2 text-sm font-medium ${
+                        isSelected ? "text-gray-700" : "text-muted-foreground"
+                      }`}>
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {isSelected && (
+                    <div className="absolute top-4 right-4">
+                      <div className="bg-white rounded-full p-1">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
+      </div>
+
+      {errors.role && (
+        <div className="flex items-center justify-center gap-2 text-destructive text-sm bg-red-50 dark:bg-red-900/20 p-4 rounded-lg max-w-md mx-auto border border-red-200">
+          <AlertCircle className="h-5 w-5" />
+          <span className="font-medium">{errors.role}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  // Render basic info - Minimal
+  const renderBasicInfo = () => (
+    <div className="space-y-6">
+      <div className="text-center space-y-1">
+        <h2 className="text-2xl font-semibold text-foreground">
+          Basic Information
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Tell us about yourself
+        </p>
+      </div>
+
+      <Card className="max-w-3xl mx-auto">
+        <CardContent className="p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="fullName">Full Name *</Label>
+              <Input
+                id="fullName"
+                value={formData.fullName}
+                onChange={(e) => updateField("fullName", e.target.value)}
+                placeholder="John Doe"
+                className={errors.fullName ? "border-red-500" : ""}
+              />
+              {errors.fullName && (
+                <p className="text-destructive text-xs">{errors.fullName}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => updateField("email", e.target.value)}
+                placeholder="john@example.com"
+                disabled
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => updateField("location", e.target.value)}
+                placeholder="New York, USA"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="linkedin">LinkedIn Profile</Label>
+              <Input
+                id="linkedin"
+                value={formData.linkedin}
+                onChange={(e) => updateField("linkedin", e.target.value)}
+                placeholder="https://linkedin.com/in/johndoe"
+              />
+            </div>
+          </div>
+
+          {(formData.role === "student" || formData.role === "alumni") && (
+            <div className="pt-4 border-t space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground">Academic Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="college">College/University *</Label>
+                  <Input
+                    id="college"
+                    value={formData.college}
+                    onChange={(e) => updateField("college", e.target.value)}
+                    placeholder="MIT, Stanford, IIT..."
+                    className={errors.college ? "border-red-500" : ""}
+                  />
+                  {errors.college && (
+                    <p className="text-destructive text-xs">{errors.college}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="degree">Degree</Label>
+                  <Select
+                    value={formData.degree}
+                    onValueChange={(value) => updateField("degree", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select degree" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Bachelor's">Bachelor's</SelectItem>
+                      <SelectItem value="Master's">Master's</SelectItem>
+                      <SelectItem value="PhD">PhD</SelectItem>
+                      <SelectItem value="Diploma">Diploma</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="branch">Branch/Major</Label>
+                  <Input
+                    id="branch"
+                    value={formData.branch}
+                    onChange={(e) => updateField("branch", e.target.value)}
+                    placeholder="Computer Science, MBA..."
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="passingYear">
+                    {formData.role === "student" ? "Expected Graduation" : "Passing Year"} *
+                  </Label>
+                  <Input
+                    id="passingYear"
+                    value={formData.passingYear}
+                    onChange={(e) => updateField("passingYear", e.target.value)}
+                    placeholder="2025"
+                    className={errors.passingYear ? "border-red-500" : ""}
+                  />
+                  {errors.passingYear && (
+                    <p className="text-destructive text-xs">{errors.passingYear}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {formData.role === "aspirant" && (
+            <div className="pt-4 border-t space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Aspirant Details
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="entranceExam">Target Entrance Exam *</Label>
+                  <Input
+                    id="entranceExam"
+                    value={formData.entranceExam}
+                    onChange={(e) => updateField("entranceExam", e.target.value)}
+                    placeholder="JEE, NEET, CAT..."
+                    className={errors.entranceExam ? "border-red-500" : ""}
+                  />
+                  {errors.entranceExam && (
+                    <p className="text-destructive text-xs">{errors.entranceExam}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="targetCollege">Target College</Label>
+                  <Input
+                    id="targetCollege"
+                    value={formData.targetCollege}
+                    onChange={(e) => updateField("targetCollege", e.target.value)}
+                    placeholder="IIT Bombay, AIIMS..."
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Render professional info - Minimal
+  const renderProfessionalInfo = () => (
+    <div className="space-y-6">
+      <div className="text-center space-y-1">
+        <h2 className="text-2xl font-semibold text-foreground">
+          Professional Information
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Share your work experience
+        </p>
+      </div>
+
+      <Card className="max-w-3xl mx-auto">
+        <CardContent className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="company">Current Company *</Label>
+              <Input
+                id="company"
+                value={formData.company}
+                onChange={(e) => updateField("company", e.target.value)}
+                placeholder="Google, Microsoft..."
+                className={errors.company ? "border-red-500" : ""}
+              />
+              {errors.company && (
+                <p className="text-destructive text-xs">{errors.company}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="designation">Job Title</Label>
+              <Input
+                id="designation"
+                value={formData.designation}
+                onChange={(e) => updateField("designation", e.target.value)}
+                placeholder="Software Engineer..."
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="yearsOfExperience">Years of Experience</Label>
+              <Input
+                id="yearsOfExperience"
+                type="number"
+                min="0"
+                value={formData.yearsOfExperience || ""}
+                onChange={(e) => updateField("yearsOfExperience", parseInt(e.target.value) || 0)}
+                placeholder="3"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Render additional info - Minimal
+  const renderAdditionalInfo = () => (
+    <div className="space-y-6">
+      <div className="text-center space-y-1">
+        <h2 className="text-2xl font-semibold text-foreground">
+          Skills & Bio
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Tell us about your expertise
+        </p>
+      </div>
+
+      <Card className="max-w-3xl mx-auto">
+        <CardContent className="p-6 space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="skills">
+              Skills & Expertise
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="skills"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                onKeyDown={handleSkillKeyPress}
+                placeholder="Type a skill and press Enter"
+              />
+              <ActionButton type="button" onClick={addSkill} variant="outline" size="sm">
+                Add
+              </ActionButton>
+            </div>
+            {formData.skills.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.skills.map((skill, index) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => removeSkill(skill)}
+                  >
+                    {skill} ×
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="bio">
+              Brief Bio
+            </Label>
+            <Textarea
+              id="bio"
+              value={formData.bio}
+              onChange={(e) => updateField("bio", e.target.value)}
+              placeholder="Tell us about yourself"
+              rows={4}
+              className="resize-none"
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Render verification step - Minimal
+  const renderVerification = () => (
+    <div className="space-y-6">
+      <div className="text-center space-y-1">
+        <h2 className="text-2xl font-semibold text-foreground">
+          Verification
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Help us verify your identity
+        </p>
+      </div>
+
+      <Card className="max-w-3xl mx-auto">
+        <CardContent className="p-6 space-y-5">
+          {(formData.role === "student" || formData.role === "alumni") && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>
+                  Upload ID Card (Front) *
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Upload your student/alumni ID card for verification
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                
+                {idCardPreview ? (
+                  <div className="relative group">
+                    <img
+                      src={idCardPreview}
+                      alt="ID Card Preview"
+                      className="w-full max-h-64 object-contain rounded-lg border"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                      <ActionButton
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          updateField("idCardFront", undefined);
+                          setIdCardPreview("");
+                        }}
+                      >
+                        Change Image
+                      </ActionButton>
+                    </div>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="idCardFront"
+                    className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex flex-col items-center justify-center space-y-2 p-6">
+                      <p className="text-sm text-muted-foreground">
+                        Click to upload (PNG, JPG or PDF, max 5MB)
+                      </p>
+                    </div>
+                    <input
+                      id="idCardFront"
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+                
+                {errors.idCardFront && (
+                  <p className="text-destructive text-xs">{errors.idCardFront}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {formData.role === "aspirant" && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="phoneNumber">
+                  Phone Number *
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Required for verification
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => updateField("phoneNumber", e.target.value)}
+                  placeholder="+91 9876543210"
+                  className={errors.phoneNumber ? "border-red-500" : ""}
+                />
+                {errors.phoneNumber && (
+                  <p className="text-destructive text-xs">{errors.phoneNumber}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Include country code
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground space-y-1 p-4 border rounded-lg">
+            <p className="font-medium">Privacy Notice</p>
+            <p>All documents are encrypted and securely stored. Only authorized administrators can review verification requests.</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Render current step
+  const renderStep = () => {
+    if (currentStep === 1) return renderRoleSelection();
+    if (currentStep === 2) return renderBasicInfo();
+    if (currentStep === 3 && formData.role === "alumni") return renderProfessionalInfo();
+    if (currentStep === 3 && formData.role !== "alumni") return renderAdditionalInfo();
+    if (currentStep === 4 && formData.role === "alumni") return renderAdditionalInfo();
+    if ((currentStep === 4 && formData.role === "student") || (currentStep === 5)) return renderVerification();
+    return renderAdditionalInfo();
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+        <LoadingSpinner size="xl" message="Loading your profile..." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50/30 via-purple-50/30 to-pink-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header with gradient */}
+        <div className="text-center mb-8 space-y-3">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm mb-4">
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Welcome to CampusLink
+            </span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Complete Your Profile
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Just a few steps to unlock your personalized experience
+          </p>
+        </div>
+
+        {/* Progress Bar with enhanced design */}
+        <Card className="mb-8 shadow-md border-neutral-200">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-neutral-700">
+                  Step {currentStep} of {totalSteps}
+                </span>
+                {formData.role && (
+                  <RoleBadge role={formData.role} size="sm" />
+                )}
+              </div>
+              {saveStatus === "saved" && (
+                <span className="flex items-center gap-1 text-sm text-green-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Saved
+                </span>
+              )}
+              {saveStatus === "saving" && (
+                <span className="text-sm text-muted-foreground">Saving...</span>
+              )}
+            </div>
+            <Progress value={progress} className="h-2.5" />
+            <div className="mt-2 text-xs text-muted-foreground text-center">
+              {Math.round(progress)}% complete
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Form Content */}
+        <div className="mb-6">{renderStep()}</div>
+
+        {/* Error Message */}
+        {errors.submit && (
+          <Card className="mb-4 border-destructive">
+            <CardContent className="p-3">
+              <p className="text-sm text-destructive">{errors.submit}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Navigation Buttons */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <ActionButton
+                variant="outline"
+                onClick={prevStep}
+                disabled={currentStep === 1 || isSubmitting}
+                icon={<ArrowLeft />}
+                iconPosition="left"
+              >
+                Back
+              </ActionButton>
+
+              {currentStep < totalSteps ? (
+                <ActionButton 
+                  onClick={nextStep}
+                  icon={<ArrowRight />}
+                  iconPosition="right"
+                >
+                  Next
+                </ActionButton>
+              ) : (
+                <ActionButton
+                  onClick={handleSubmit}
+                  loading={isSubmitting}
+                  loadingText="Submitting..."
+                  icon={<Sparkles />}
+                >
+                  Complete Setup
+                </ActionButton>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          Your information is secure and will only be used for verification purposes.
+        </p>
+      </div>
+    </div>
+  );
+}
