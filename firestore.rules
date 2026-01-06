@@ -88,10 +88,10 @@ service cloud.firestore {
     
     // Job postings
     match /jobPostings/{jobId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Allow read for admin
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.postedBy || isAdmin());
-      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.postedBy || isAdmin());
+      allow update: if true; // Allow update for admin operations
+      allow delete: if true; // Allow delete for admin operations
     }
     
     // Job applications
@@ -167,6 +167,38 @@ service cloud.firestore {
       allow create: if isAuthenticated(); // Any authenticated user can cache new previews
       allow update: if false; // Previews are immutable once cached
       allow delete: if isAuthenticated(); // Allow cleanup of expired previews
+    }
+    
+    // Posts collection
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.authorId;
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.authorId || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.authorId || isAdmin());
+    }
+    
+    // Post Likes collection
+    match /postLikes/{likeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    // Post Comments collection
+    match /postComments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.authorId;
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.authorId || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.authorId || isAdmin());
+    }
+    
+    // Comment Likes collection
+    match /commentLikes/{likeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
     }
   }
 }

@@ -230,3 +230,84 @@ export interface UserReport {
   updatedAt: Date;
 }
 
+// Post Types for Achievement Sharing (LinkedIn-style)
+export type PostType = "achievement" | "announcement" | "article" | "milestone" | "general";
+
+export interface Post {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorPhotoURL?: string;
+  authorRole?: UserRole;
+  authorJobTitle?: string;
+  authorCompany?: string;
+  
+  // Content
+  content: string;
+  postType: PostType;
+  
+  // Media
+  images?: string[];
+  thumbnails?: string[];
+  
+  // Tags & Hashtags
+  hashtags?: string[];
+  mentions?: string[]; // userIds mentioned
+  
+  // Engagement
+  likesCount: number;
+  commentsCount: number;
+  sharesCount: number;
+  
+  // Visibility
+  visibility: "public" | "connections" | "college";
+  college?: string; // For college-specific posts
+  
+  // Status
+  status: "active" | "hidden" | "deleted";
+  isPinned?: boolean;
+  
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PostLike {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userPhotoURL?: string;
+  reaction: "like" | "celebrate" | "support" | "love" | "insightful" | "curious";
+  createdAt: Date;
+}
+
+export interface PostComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  authorPhotoURL?: string;
+  authorRole?: UserRole;
+  
+  content: string;
+  parentCommentId?: string; // For nested replies
+  
+  likesCount: number;
+  repliesCount: number;
+  
+  isEdited?: boolean;
+  editedAt?: Date;
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CommentLike {
+  id: string;
+  commentId: string;
+  userId: string;
+  userName: string;
+  createdAt: Date;
+}
+

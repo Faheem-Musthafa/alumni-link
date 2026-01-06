@@ -17,7 +17,6 @@ import { handleError } from "@/lib/utils/error-handling";
 import { User as UserType, UserRole } from "@/types";
 import { 
   Users, 
-  ArrowLeft, 
   Search,
   Edit,
   Shield,
@@ -25,10 +24,18 @@ import {
   XCircle,
   Mail,
   Calendar,
-  UserCircle,
-  Download,
+  FileDown,
   Filter,
-  FileDown
+  ChevronLeft,
+  ChevronRight,
+  UserCircle,
+  GraduationCap,
+  Briefcase,
+  Star,
+  MoreVertical,
+  Eye,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
 import { logAdminActivity } from "@/lib/firebase/adminLogs";
 import { downloadCSV, prepareUsersExport } from "@/lib/utils/exportData";
@@ -56,6 +63,8 @@ export default function AdminUsersPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editRole, setEditRole] = useState<UserRole>("student");
   const [submitting, setSubmitting] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,36 +76,46 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    // Filter users based on search query
-    if (searchQuery.trim() === "") {
-      setFilteredUsers(users);
-    } else {
+    let filtered = users;
+    
+    // Filter by search query
+    if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
-      const filtered = users.filter(user => 
+      filtered = filtered.filter(user => 
         user.displayName?.toLowerCase().includes(query) ||
         user.email?.toLowerCase().includes(query) ||
         user.id.toLowerCase().includes(query)
       );
-      setFilteredUsers(filtered);
     }
-  }, [searchQuery, users]);
+    
+    // Filter by role
+    if (roleFilter !== "all") {
+      filtered = filtered.filter(user => user.role === roleFilter);
+    }
+    
+    // Filter by verification status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(user => user.verificationStatus === statusFilter);
+    }
+    
+    setFilteredUsers(filtered);
+    setCurrentPage(1);
+  }, [searchQuery, roleFilter, statusFilter, users]);
 
   const loadUsers = async () => {
     try {
-      const { collection, getDocs, orderBy, query, limit, getCountFromServer } = await import("firebase/firestore");
+      setLoading(true);
+      const { collection, getDocs, orderBy, query, getCountFromServer } = await import("firebase/firestore");
       const { db } = await import("@/lib/firebase/config");
       
       if (!db) throw new Error("Firestore not initialized");
 
-      // Get total count
       const countSnapshot = await getCountFromServer(collection(db, "users"));
       setTotalRecords(countSnapshot.data().count);
 
-      // Get paginated data
       const q = query(
         collection(db, "users"), 
-        orderBy("createdAt", "desc"),
-        limit(pageSize)
+        orderBy("createdAt", "desc")
       );
       const snapshot = await getDocs(q);
       
@@ -144,7 +163,6 @@ export default function AdminUsersPage() {
         updatedAt: serverTimestamp(),
       });
 
-      // Log admin activity
       if (auth && auth.currentUser) {
         await logAdminActivity({
           adminId: auth.currentUser.uid,
@@ -181,32 +199,32 @@ export default function AdminUsersPage() {
     }
   };
 
-  const getRoleBadgeColor = (role?: UserRole) => {
+  const getRoleConfig = (role?: UserRole) => {
     switch (role) {
-      case "admin": return "bg-red-500/20 text-red-400 border-red-500/30";
-      case "alumni": return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-      case "mentor": return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-      case "student": return "bg-green-500/20 text-green-400 border-green-500/30";
-      default: return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+      case "admin": return { color: "from-red-500 to-rose-500", bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30", icon: Shield };
+      case "alumni": return { color: "from-purple-500 to-violet-500", bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/30", icon: GraduationCap };
+      case "aspirant": return { color: "from-blue-500 to-cyan-500", bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/30", icon: Star };
+      case "student": return { color: "from-emerald-500 to-green-500", bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30", icon: UserCircle };
+      default: return { color: "from-slate-500 to-slate-600", bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/30", icon: UserCircle };
     }
   };
 
   const getVerificationBadge = (status?: string) => {
     switch (status) {
       case "approved":
-        return <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30 flex items-center gap-1">
+        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
           <CheckCircle className="h-3 w-3" />
           Verified
         </Badge>;
       case "pending":
-        return <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pending</Badge>;
+        return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">Pending</Badge>;
       case "rejected":
-        return <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
+        return <Badge className="bg-red-500/10 text-red-400 border-red-500/30 flex items-center gap-1">
           <XCircle className="h-3 w-3" />
           Rejected
         </Badge>;
       default:
-        return <Badge variant="outline" className="bg-gray-500/20 text-gray-400 border-gray-500/30">Unverified</Badge>;
+        return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30">Unverified</Badge>;
     }
   };
 
@@ -214,64 +232,30 @@ export default function AdminUsersPage() {
     return user.displayName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || "U";
   };
 
-  const getAvatarColor = (index: number) => {
-    const colors = [
-      "bg-pink-500",
-      "bg-yellow-500",
-      "bg-purple-500",
-      "bg-green-500",
-      "bg-blue-500",
-      "bg-orange-500",
-      "bg-cyan-500",
-      "bg-red-500",
+  const getAvatarGradient = (index: number) => {
+    const gradients = [
+      "from-pink-500 to-rose-500",
+      "from-amber-500 to-orange-500",
+      "from-purple-500 to-violet-500",
+      "from-emerald-500 to-green-500",
+      "from-blue-500 to-cyan-500",
+      "from-red-500 to-pink-500",
+      "from-teal-500 to-cyan-500",
+      "from-indigo-500 to-purple-500",
     ];
-    return colors[index % colors.length];
+    return gradients[index % gradients.length];
   };
 
   // Pagination helpers
-  const totalPages = Math.ceil(totalRecords / pageSize);
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
   const startRecord = (currentPage - 1) * pageSize + 1;
-  const endRecord = Math.min(currentPage * pageSize, totalRecords);
+  const endRecord = Math.min(currentPage * pageSize, filteredUsers.length);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      loadUsers();
     }
-  };
-
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-    loadUsers();
-  };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 7;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 4) {
-        for (let i = 1; i <= 5; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 3) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    return pages;
   };
 
   // Export handler
@@ -305,11 +289,25 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Stats
+  const stats = {
+    total: users.length,
+    verified: users.filter(u => u.verificationStatus === "approved").length,
+    pending: users.filter(u => u.verificationStatus === "pending").length,
+    admins: users.filter(u => u.role === "admin").length,
+    alumni: users.filter(u => u.role === "alumni").length,
+    students: users.filter(u => u.role === "student").length,
+    aspirants: users.filter(u => u.role === "aspirant").length,
+  };
+
   if (loading) {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <LoadingSpinner size="lg" />
+          <div className="flex flex-col items-center gap-4">
+            <LoadingSpinner size="lg" />
+            <p className="text-slate-400">Loading users...</p>
+          </div>
         </div>
       </AdminLayout>
     );
@@ -317,250 +315,321 @@ export default function AdminUsersPage() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 lg:p-8 space-y-6">
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link href="/admin">
-              <Button variant="outline" size="icon" className="bg-[#1a1f2e] border-gray-800 text-white hover:bg-gray-800">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-white">User Management</h1>
-              <p className="text-gray-400 text-sm">{users.length} total users registered</p>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-white">User Management</h1>
             </div>
+            <p className="text-slate-400">{users.length} users registered on the platform</p>
           </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={loadUsers}
+              variant="outline"
+              className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              onClick={handleExport}
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:opacity-90"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {[
+            { label: "Total", value: stats.total, color: "from-slate-500 to-slate-600" },
+            { label: "Verified", value: stats.verified, color: "from-emerald-500 to-green-500" },
+            { label: "Pending", value: stats.pending, color: "from-amber-500 to-orange-500" },
+            { label: "Students", value: stats.students, color: "from-blue-500 to-cyan-500" },
+            { label: "Alumni", value: stats.alumni, color: "from-purple-500 to-violet-500" },
+            { label: "Aspirants", value: stats.aspirants, color: "from-pink-500 to-rose-500" },
+            { label: "Admins", value: stats.admins, color: "from-red-500 to-rose-500" },
+          ].map((stat, index) => (
+            <Card key={index} className="p-4 bg-slate-800/30 border-slate-700/50">
+              <p className="text-xs text-slate-400 mb-1">{stat.label}</p>
+              <p className={`text-2xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
+                {stat.value}
+              </p>
+            </Card>
+          ))}
         </div>
 
         {/* Search and Filters */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search by name, email, or user ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-[#1a1f2e] border-gray-800 text-white pl-10"
-            />
+        <Card className="p-4 bg-slate-800/30 border-slate-700/50">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search by name, email, or user ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-slate-900/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500/50"
+              />
+            </div>
+            <div className="flex gap-3">
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="h-10 px-4 rounded-lg bg-slate-900/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                <option value="all">All Roles</option>
+                <option value="student">Students</option>
+                <option value="alumni">Alumni</option>
+                <option value="aspirant">Aspirants</option>
+                <option value="admin">Admins</option>
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-10 px-4 rounded-lg bg-slate-900/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                <option value="all">All Status</option>
+                <option value="approved">Verified</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
           </div>
-          <Button variant="outline" className="bg-[#1a1f2e] border-gray-800 text-white hover:bg-gray-800">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button 
-            onClick={handleExport}
-            variant="outline" 
-            className="bg-[#1a1f2e] border-gray-800 text-white hover:bg-gray-800"
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Total Users</div>
-            <div className="text-2xl font-bold text-white">{users.length}</div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Verified</div>
-            <div className="text-2xl font-bold text-green-400">
-              {users.filter(u => u.verificationStatus === "approved").length}
-            </div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Pending</div>
-            <div className="text-2xl font-bold text-yellow-400">
-              {users.filter(u => u.verificationStatus === "pending").length}
-            </div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Admins</div>
-            <div className="text-2xl font-bold text-red-400">
-              {users.filter(u => u.role === "admin").length}
-            </div>
-          </Card>
-        </div>
+        </Card>
 
         {/* Users Table */}
-        <Card className="bg-[#1a1f2e] border-gray-800">
-          <div className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">User</th>
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Role</th>
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Status</th>
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Joined</th>
-                    <th className="text-right py-4 px-4 text-sm font-medium text-gray-400">Actions</th>
+        <Card className="bg-slate-800/30 border-slate-700/50 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-700/50 bg-slate-900/30">
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">User</th>
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Joined</th>
+                  <th className="text-right py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/30">
+                {paginatedUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-16">
+                      <EmptyState
+                        icon={Users}
+                        title="No users found"
+                        description={searchQuery || roleFilter !== "all" || statusFilter !== "all" ? "Try adjusting your filters" : "No users in the system yet"}
+                      />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-12">
-                        <EmptyState
-                          icon={Users}
-                          title="No users found"
-                          description={searchQuery ? "Try adjusting your search" : "No users in the system yet"}
-                        />
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((user, index) => (
-                      <tr key={user.id} className="border-b border-gray-800 hover:bg-gray-800/30 transition-colors">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 ${getAvatarColor(index)} rounded-full flex items-center justify-center text-white font-semibold`}>
+                ) : (
+                  paginatedUsers.map((user, index) => {
+                    const roleConfig = getRoleConfig(user.role);
+                    const RoleIcon = roleConfig.icon;
+                    
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-800/30 transition-colors group">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${getAvatarGradient(index)} flex items-center justify-center text-white font-semibold shadow-lg`}>
                               {getUserInitial(user)}
                             </div>
                             <div>
-                              <div className="text-white font-medium">{user.displayName || "No Name"}</div>
-                              <div className="text-gray-400 text-xs">{user.email}</div>
+                              <div className="text-white font-medium group-hover:text-blue-400 transition-colors">{user.displayName || "No Name"}</div>
+                              <div className="flex items-center gap-1 text-slate-400 text-sm">
+                                <Mail className="w-3 h-3" />
+                                {user.email}
+                              </div>
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-4">
-                          <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
+                        <td className="py-4 px-6">
+                          <Badge className={`${roleConfig.bg} ${roleConfig.text} ${roleConfig.border} flex items-center gap-1.5 w-fit`}>
+                            <RoleIcon className="h-3 w-3" />
                             {user.role || "student"}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-6">
                           {getVerificationBadge(user.verificationStatus)}
                         </td>
-                        <td className="py-4 px-4 text-gray-300 text-sm">
-                          {user.createdAt?.toLocaleDateString()}
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-1.5 text-slate-400 text-sm">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {user.createdAt?.toLocaleDateString()}
+                          </div>
                         </td>
-                        <td className="py-4 px-4 text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                            className="bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/profile/${user.id}`)}
+                              className="bg-slate-700/30 border-slate-600/30 text-slate-300 hover:bg-slate-600/30 hover:text-white"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditUser(user)}
+                              className="bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                            >
+                              <Edit className="h-4 w-4 mr-1.5" />
+                              Edit Role
+                            </Button>
+                          </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-            {/* Pagination */}
-            {totalRecords > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-800">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-sm text-gray-400">
-                    Showing {startRecord} to {endRecord} of {totalRecords} users
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-400">Rows per page:</span>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                      className="bg-[#0f1419] border border-gray-800 text-white rounded px-2 py-1 text-sm"
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
+          {/* Pagination */}
+          {filteredUsers.length > 0 && (
+            <div className="px-6 py-4 border-t border-slate-700/50 bg-slate-900/30">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-slate-400">
+                  Showing <span className="font-medium text-white">{startRecord}</span> to <span className="font-medium text-white">{endRecord}</span> of <span className="font-medium text-white">{filteredUsers.length}</span> users
                 </div>
-                
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 text-gray-400 hover:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                <div className="flex items-center gap-2">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="h-9 px-3 rounded-lg bg-slate-800/50 border border-slate-700/50 text-white text-sm"
                   >
-                    Previous
-                  </button>
-                  
-                  {getPageNumbers().map((page, index) => (
-                    page === '...' ? (
-                      <span key={`ellipsis-${index}`} className="px-3 py-1 text-gray-400">...</span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page as number)}
-                        className={`px-3 py-1 rounded text-sm ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  ))}
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 text-gray-400 hover:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
+                    <option value={5}>5 per page</option>
+                    <option value={10}>10 per page</option>
+                    <option value={25}>25 per page</option>
+                    <option value={50}>50 per page</option>
+                  </select>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-700/50 disabled:opacity-50"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pageNum)}
+                          className={currentPage === pageNum 
+                            ? "bg-blue-500 border-blue-500 text-white" 
+                            : "bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-700/50"
+                          }
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-700/50 disabled:opacity-50"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </Card>
       </div>
 
       {/* Edit Role Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="bg-[#1a1f2e] border-gray-800 text-white">
+        <DialogContent className="bg-slate-900 border-slate-700/50 text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Edit User Role</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Change the role for {selectedUser?.displayName || selectedUser?.email}
+            <DialogTitle className="text-xl text-white flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              Edit User Role
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Change the role for <span className="text-white font-medium">{selectedUser?.displayName || selectedUser?.email}</span>
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label className="text-white">User Role</Label>
-              <select
-                value={editRole}
-                onChange={(e) => setEditRole(e.target.value as UserRole)}
-                className="w-full h-10 px-3 rounded-md bg-[#0f1419] border border-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="student">Student</option>
-                <option value="alumni">Alumni</option>
-                <option value="mentor">Mentor</option>
-                <option value="admin">Admin</option>
-              </select>
+            <div className="space-y-3">
+              <Label className="text-slate-300">Select New Role</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "student", label: "Student", icon: UserCircle, color: "from-emerald-500 to-green-500" },
+                  { value: "alumni", label: "Alumni", icon: GraduationCap, color: "from-purple-500 to-violet-500" },
+                  { value: "aspirant", label: "Aspirant", icon: Star, color: "from-blue-500 to-cyan-500" },
+                  { value: "admin", label: "Admin", icon: Shield, color: "from-red-500 to-rose-500" },
+                ].map((role) => (
+                  <button
+                    key={role.value}
+                    onClick={() => setEditRole(role.value as UserRole)}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      editRole === role.value
+                        ? "border-blue-500 bg-blue-500/10"
+                        : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600/50"
+                    }`}
+                  >
+                    <div className={`w-10 h-10 mx-auto rounded-lg bg-gradient-to-br ${role.color} flex items-center justify-center mb-2`}>
+                      <role.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-sm font-medium text-white">{role.label}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-              <p className="text-sm text-blue-400">
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+              <p className="text-sm text-amber-400">
                 <strong>Note:</strong> Changing user roles will affect their permissions and access to features.
               </p>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <Button
               variant="outline"
               onClick={() => setEditDialogOpen(false)}
               disabled={submitting}
-              className="bg-[#0f1419] border-gray-800 text-white hover:bg-gray-800"
+              className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
             >
               Cancel
             </Button>
             <Button
               onClick={handleUpdateRole}
               disabled={submitting}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:opacity-90"
             >
               {submitting ? (
                 <div className="flex items-center">

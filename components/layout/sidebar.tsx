@@ -20,6 +20,7 @@ import {
   Folder,
   ChevronRight,
   TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ import { subscribeToUnreadCount } from "@/lib/firebase/chat";
 const navigation = {
   student: [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "from-blue-500 to-blue-600", badge: null, description: "Overview", dynamic: false },
+    { name: "Feed", href: "/posts", icon: Sparkles, color: "from-violet-500 to-purple-600", badge: null, description: "Share & Connect", dynamic: false },
     { name: "Browse Users", href: "/users", icon: Users, color: "from-purple-500 to-purple-600", badge: null, description: "Connect", dynamic: false },
     { name: "Find Mentors", href: "/mentorship", icon: GraduationCap, color: "from-green-500 to-green-600", badge: null, description: "Learn", dynamic: false },
     { name: "Messages", href: "/chat", icon: MessageSquare, color: "from-pink-500 to-pink-600", badge: null, description: "Chat", dynamic: true },
@@ -39,20 +41,10 @@ const navigation = {
   ],
   alumni: [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "from-blue-500 to-blue-600", badge: null, description: "Overview", dynamic: false },
+    { name: "Feed", href: "/posts", icon: Sparkles, color: "from-violet-500 to-purple-600", badge: null, description: "Share & Connect", dynamic: false },
     { name: "Browse Users", href: "/users", icon: Users, color: "from-purple-500 to-purple-600", badge: null, description: "Network", dynamic: false },
     { name: "Mentorship Requests", href: "/mentorship", icon: GraduationCap, color: "from-green-500 to-green-600", badge: null, description: "Guide", dynamic: false },
     { name: "Messages", href: "/chat", icon: MessageSquare, color: "from-pink-500 to-pink-600", badge: null, description: "Chat", dynamic: true },
-    { name: "Post a Job", href: "/jobs/create", icon: PlusCircle, color: "from-emerald-500 to-emerald-600", badge: null, description: "Recruit", dynamic: false },
-    { name: "My Job Posts", href: "/jobs/my-posts", icon: Folder, color: "from-amber-500 to-amber-600", badge: null, description: "Manage", dynamic: false },
-    { name: "Profile", href: "/profile", icon: User, color: "from-cyan-500 to-cyan-600", badge: null, description: "You", dynamic: false },
-    { name: "Settings", href: "/settings", icon: Settings, color: "from-gray-500 to-gray-600", badge: null, description: "Preferences", dynamic: false },
-  ],
-  mentor: [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "from-blue-500 to-blue-600", badge: null, description: "Overview", dynamic: false },
-    { name: "Browse Users", href: "/users", icon: Users, color: "from-purple-500 to-purple-600", badge: null, description: "Network", dynamic: false },
-    { name: "Mentorship Requests", href: "/mentorship", icon: GraduationCap, color: "from-green-500 to-green-600", badge: null, description: "Guide", dynamic: false },
-    { name: "Messages", href: "/chat", icon: MessageSquare, color: "from-pink-500 to-pink-600", badge: null, description: "Chat", dynamic: true },
-    { name: "Browse Jobs", href: "/jobs", icon: Briefcase, color: "from-orange-500 to-orange-600", badge: null, description: "Career", dynamic: false },
     { name: "Post a Job", href: "/jobs/create", icon: PlusCircle, color: "from-emerald-500 to-emerald-600", badge: null, description: "Recruit", dynamic: false },
     { name: "My Job Posts", href: "/jobs/my-posts", icon: Folder, color: "from-amber-500 to-amber-600", badge: null, description: "Manage", dynamic: false },
     { name: "Profile", href: "/profile", icon: User, color: "from-cyan-500 to-cyan-600", badge: null, description: "You", dynamic: false },
@@ -60,8 +52,9 @@ const navigation = {
   ],
   aspirant: [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "from-blue-500 to-blue-600", badge: null, description: "Overview", dynamic: false },
-    { name: "Browse Users", href: "/users", icon: Users, color: "from-purple-500 to-purple-600", badge: null, description: "Connect", dynamic: false },
-    { name: "Find Mentors", href: "/mentorship", icon: GraduationCap, color: "from-green-500 to-green-600", badge: null, description: "Learn", dynamic: false },
+    { name: "Feed", href: "/posts", icon: Sparkles, color: "from-violet-500 to-purple-600", badge: null, description: "Share & Connect", dynamic: false },
+    { name: "Browse Students", href: "/users", icon: Users, color: "from-purple-500 to-purple-600", badge: null, description: "Connect", dynamic: false },
+    { name: "Find Mentors", href: "/mentorship", icon: GraduationCap, color: "from-green-500 to-green-600", badge: null, description: "Guidance", dynamic: false },
     { name: "Messages", href: "/chat", icon: MessageSquare, color: "from-pink-500 to-pink-600", badge: null, description: "Chat", dynamic: true },
     { name: "Profile", href: "/profile", icon: User, color: "from-cyan-500 to-cyan-600", badge: null, description: "You", dynamic: false },
     { name: "Settings", href: "/settings", icon: Settings, color: "from-gray-500 to-gray-600", badge: null, description: "Preferences", dynamic: false },
@@ -69,6 +62,7 @@ const navigation = {
   admin: [
     { name: "Admin Panel", href: "/admin", icon: Settings, color: "from-red-500 to-red-600", badge: null, description: "Control", dynamic: false },
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, color: "from-blue-500 to-blue-600", badge: null, description: "Overview", dynamic: false },
+    { name: "Feed", href: "/posts", icon: Sparkles, color: "from-violet-500 to-purple-600", badge: null, description: "Share & Connect", dynamic: false },
     { name: "Messages", href: "/chat", icon: MessageSquare, color: "from-pink-500 to-pink-600", badge: null, description: "Chat", dynamic: true },
     { name: "Profile", href: "/profile", icon: User, color: "from-cyan-500 to-cyan-600", badge: null, description: "You", dynamic: false },
   ],
@@ -78,61 +72,88 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const router = useRouter();
-  const [userRole, setUserRole] = useState<"student" | "alumni" | "aspirant" | "admin" | "mentor">(() => {
-    if (typeof window !== 'undefined') {
-      const cachedRole = localStorage.getItem('userRole');
-      if (cachedRole && ['student', 'alumni', 'aspirant', 'admin', 'mentor'].includes(cachedRole)) {
-        return cachedRole as "student" | "alumni" | "aspirant" | "admin" | "mentor";
-      }
-    }
-    return "student";
-  });
+  const [userRole, setUserRole] = useState<"student" | "alumni" | "aspirant" | "admin" | null>(null);
+  const [isRoleLoaded, setIsRoleLoaded] = useState(false);
   
-  const userIdRef = useRef<string | null>(null);
   const isFetchingRef = useRef(false);
-  const hasInitializedRef = useRef(false);
   
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Memoize userId to prevent unnecessary re-renders
   const userId = useMemo(() => user?.uid || null, [user?.uid]);
 
+  // Load cached role immediately on mount to prevent flicker
   useEffect(() => {
-    // Only fetch once when component mounts or user changes
-    if (userId && userId !== userIdRef.current && !isFetchingRef.current && !hasInitializedRef.current) {
-      userIdRef.current = userId;
+    const cachedRole = localStorage.getItem('userRole');
+    if (cachedRole && ['student', 'alumni', 'aspirant', 'admin'].includes(cachedRole)) {
+      setUserRole(cachedRole as "student" | "alumni" | "aspirant" | "admin");
+    }
+  }, []);
+
+  useEffect(() => {
+    // Always fetch user role when user changes
+    if (userId && !isFetchingRef.current) {
       isFetchingRef.current = true;
-      hasInitializedRef.current = true;
       
       import("@/lib/firebase/auth").then(({ getUserData }) => {
         getUserData(userId)
           .then((userData) => {
             if (userData?.role) {
-              setUserRole(userData.role);
-              localStorage.setItem('userRole', userData.role);
+              // Map mentor role to alumni (mentor uses same navigation as alumni)
+              const role = userData.role === 'mentor' ? 'alumni' : userData.role;
+              if (['student', 'alumni', 'aspirant', 'admin'].includes(role)) {
+                setUserRole(role as "student" | "alumni" | "aspirant" | "admin");
+                localStorage.setItem('userRole', role);
+              }
             }
+            setIsRoleLoaded(true);
           })
-          .catch(() => {})
+          .catch(() => {
+            // Fallback to cached role if fetch fails
+            const cachedRole = localStorage.getItem('userRole');
+            if (cachedRole && ['student', 'alumni', 'aspirant', 'admin'].includes(cachedRole)) {
+              setUserRole(cachedRole as "student" | "alumni" | "aspirant" | "admin");
+            } else {
+              setUserRole('student'); // Default fallback
+            }
+            setIsRoleLoaded(true);
+          })
           .finally(() => {
             isFetchingRef.current = false;
           });
       });
+    } else if (!userId) {
+      setIsRoleLoaded(false);
+      setUserRole(null);
     }
   }, [userId]);
 
-  // Subscribe to unread message count
+  // Subscribe to unread message count - only when user is authenticated and role is loaded
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !isRoleLoaded) {
       setUnreadCount(0);
       return;
     }
 
-    const unsubscribe = subscribeToUnreadCount(userId, (count) => {
-      setUnreadCount(count);
-    });
+    let unsubscribe: (() => void) | null = null;
+    
+    // Small delay to ensure Firebase auth is fully ready
+    const timeoutId = setTimeout(() => {
+      try {
+        unsubscribe = subscribeToUnreadCount(userId, (count) => {
+          setUnreadCount(count);
+        });
+      } catch (error) {
+        console.error("Failed to subscribe to unread count:", error);
+        setUnreadCount(0);
+      }
+    }, 100);
 
-    return () => unsubscribe();
-  }, [userId]);
+    return () => {
+      clearTimeout(timeoutId);
+      if (unsubscribe) unsubscribe();
+    };
+  }, [userId, isRoleLoaded]);
 
   const handleSignOut = useCallback(async () => {
     await signOut();
@@ -140,29 +161,62 @@ export function Sidebar() {
     router.push("/login");
   }, [router]);
 
+  // Don't render until user is available
   if (!user) return null;
+  
+  // Show minimal loading state while role is being determined
+  if (!userRole) {
+    return (
+      <div className="flex h-screen w-72 flex-col bg-white border-r border-gray-100 shadow-sm overflow-hidden">
+        <div className="relative h-24 flex items-center px-6 border-b border-gray-100 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
+              <GraduationCap className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                CampusLink
+              </h1>
+              <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Loading...
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-pulse flex flex-col gap-3 w-full px-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-14 bg-gray-100 rounded-2xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Memoize navigation items to prevent recalculation
-  const navItems = useMemo(() => navigation[userRole], [userRole]);
+  const navItems = navigation[userRole] || navigation.student;
 
   return (
     <div className="flex h-screen w-72 flex-col bg-white border-r border-gray-100 shadow-sm overflow-hidden">
       {/* Premium Header - Static (no animation on pulse) */}
       <div className="relative h-24 flex items-center px-6 border-b border-gray-100 overflow-hidden">
         {/* Animated Background */}
-        <div className="absolute inset-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
         
         <Link href="/dashboard" className="relative flex items-center gap-3 group z-10">
           <div className="relative">
             {/* Glow Effect */}
-            <div className="absolute inset-0 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
             {/* Icon Container */}
-            <div className="relative h-12 w-12 rounded-2xl bg-linear-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-105">
+            <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-105">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
               CampusLink
             </h1>
             <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
@@ -178,14 +232,14 @@ export function Sidebar() {
         <Link href="/profile" className="block">
           <div className="relative group">
             {/* Card Background with Gradient */}
-            <div className="absolute inset-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl opacity-60 group-hover:opacity-100 transition-opacity"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl opacity-60 group-hover:opacity-100 transition-opacity"></div>
             
             {/* Card Content */}
             <div className="relative flex items-center gap-3 p-3 rounded-2xl">
               <div className="relative">
                 <Avatar className="h-12 w-12 ring-2 ring-white shadow-lg group-hover:ring-blue-500 transition-all">
                   <AvatarImage src={user.photoURL || undefined} />
-                  <AvatarFallback className="bg-linear-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">
                     {user.displayName?.charAt(0) || "U"}
                   </AvatarFallback>
                 </Avatar>
@@ -219,7 +273,7 @@ export function Sidebar() {
                 className={cn(
                   "group relative flex items-center gap-3 px-3 py-3 rounded-2xl font-medium text-sm transition-all duration-200",
                   isActive
-                    ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200/50"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200/50"
                     : "text-gray-700 hover:bg-gray-50"
                 )}
               >
@@ -237,7 +291,7 @@ export function Sidebar() {
                 )}>
                   {/* Gradient Background for Icon */}
                   {!isActive && (
-                    <div className={cn("absolute inset-0 rounded-xl bg-linear-to-br opacity-10 group-hover:opacity-20 transition-opacity", item.color)}></div>
+                    <div className={cn("absolute inset-0 rounded-xl bg-gradient-to-br opacity-10 group-hover:opacity-20 transition-opacity", item.color)}></div>
                   )}
                   <Icon className={cn(
                     "h-5 w-5 transition-all relative z-10",
@@ -279,7 +333,7 @@ export function Sidebar() {
 
                 {/* Hover Highlight */}
                 <div className={cn(
-                  "absolute inset-0 rounded-2xl bg-linear-to-br opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none",
+                  "absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none",
                   item.color
                 )}></div>
               </Link>
@@ -289,7 +343,7 @@ export function Sidebar() {
       </nav>
 
       {/* Premium Sign Out Button */}
-      <div className="p-4 border-t border-gray-100 bg-linear-to-b from-transparent via-gray-50/50 to-gray-50">
+      <div className="p-4 border-t border-gray-100 bg-gradient-to-b from-transparent via-gray-50/50 to-gray-50">
         <button
           onClick={handleSignOut}
           className="group w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-gray-700 hover:bg-red-50 hover:text-red-600 font-medium text-sm transition-all duration-300 relative overflow-hidden"

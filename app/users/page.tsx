@@ -102,32 +102,32 @@ export default function BrowseUsersPage() {
           description="Connect with students, alumni, and aspirants from your network"
         />
 
-        <Card className="border-none shadow-md">
-          <CardContent className="pt-6">
+        <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
+          <CardContent className="p-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   placeholder="Search by name, college, company, skills..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-11"
+                  className="pl-12 h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500 transition-colors text-base"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-5 w-5" />
                   </button>
                 )}
               </div>
 
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full md:w-40 h-11">
+                <SelectTrigger className="w-full md:w-44 h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500">
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="student">Students</SelectItem>
                   <SelectItem value="alumni">Alumni</SelectItem>
@@ -137,10 +137,10 @@ export default function BrowseUsersPage() {
 
               {colleges.length > 0 && (
                 <Select value={collegeFilter} onValueChange={setCollegeFilter}>
-                  <SelectTrigger className="w-full md:w-48 h-11">
+                  <SelectTrigger className="w-full md:w-52 h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500">
                     <SelectValue placeholder="College" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-xl">
                     <SelectItem value="all">All Colleges</SelectItem>
                     {colleges.map((college) => (
                       <SelectItem key={college} value={college || ""}>
@@ -160,7 +160,7 @@ export default function BrowseUsersPage() {
                     setSearchQuery("");
                   }}
                   icon={<FilterX className="h-4 w-4" />}
-                  className="h-11"
+                  className="h-12 rounded-xl border-2"
                 >
                   Clear
                 </ActionButton>
@@ -169,31 +169,36 @@ export default function BrowseUsersPage() {
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            {filteredUsers.length} {filteredUsers.length === 1 ? "user" : "users"} found
+        <div className="flex items-center justify-between py-2">
+          <p className="text-sm text-gray-600 font-medium">
+            <span className="text-gray-900 font-bold">{filteredUsers.length}</span> {filteredUsers.length === 1 ? "user" : "users"} found
           </p>
         </div>
 
         {filteredUsers.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title="No users found"
-            description="Try adjusting your search or filters to find more users"
-            action={
-              <ActionButton
-                variant="outline"
-                icon={<FilterX className="h-4 w-4" />}
-                onClick={() => {
-                  setSearchQuery("");
-                  setRoleFilter("all");
-                  setCollegeFilter("all");
-                }}
-              >
-                Clear All Filters
-              </ActionButton>
-            }
-          />
+          <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
+            <CardContent className="py-16">
+              <EmptyState
+                icon={Users}
+                title="No users found"
+                description="Try adjusting your search or filters to find more users"
+                action={
+                  <ActionButton
+                    variant="outline"
+                    icon={<FilterX className="h-4 w-4" />}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setRoleFilter("all");
+                      setCollegeFilter("all");
+                    }}
+                    className="rounded-full border-2"
+                  >
+                    Clear All Filters
+                  </ActionButton>
+                }
+              />
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredUsers.map((u) => {

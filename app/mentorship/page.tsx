@@ -255,15 +255,19 @@ export default function MentorshipPage() {
         {showBrowse && (userData?.role === "student" || userData?.role === "aspirant") ? (
           <>
             {loadingMentors ? (
-              <div className="flex items-center justify-center py-12">
+              <div className="flex items-center justify-center py-16">
                 <LoadingSpinner size="lg" message="Loading mentors..." />
               </div>
             ) : mentors.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title="No mentors available yet"
-                description="Check back later for available alumni mentors"
-              />
+              <Card className="border-none shadow-lg rounded-2xl">
+                <CardContent className="py-16">
+                  <EmptyState
+                    icon={Users}
+                    title="No mentors available yet"
+                    description="Check back later for available alumni mentors"
+                  />
+                </CardContent>
+              </Card>
             ) : (
               <MentorCardGrid>
                 {mentors.map((mentor) => {
@@ -296,42 +300,58 @@ export default function MentorshipPage() {
             )}
           </>
         ) : requests.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground mb-4">
-                {userData?.role === "student" || userData?.role === "aspirant"
-                  ? "You haven't made any mentorship requests yet."
-                  : "No mentorship requests at the moment."}
-              </p>
-              {(userData?.role === "student" || userData?.role === "aspirant") && (
-                <ActionButton 
-                  variant="primary"
-                  onClick={handleBrowseMentors}
-                  icon={<Users />}
-                >
-                  Browse Mentors
-                </ActionButton>
-              )}
+          <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
+            <CardContent className="py-16 text-center">
+              <div className="flex flex-col items-center">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center mb-4">
+                  <Users className="h-8 w-8 text-purple-600" />
+                </div>
+                <p className="text-gray-600 mb-6 text-lg">
+                  {userData?.role === "student" || userData?.role === "aspirant"
+                    ? "You haven't made any mentorship requests yet."
+                    : "No mentorship requests at the moment."}
+                </p>
+                {(userData?.role === "student" || userData?.role === "aspirant") && (
+                  <ActionButton 
+                    variant="primary"
+                    onClick={handleBrowseMentors}
+                    icon={<Users />}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-full shadow-lg px-6"
+                  >
+                    Browse Mentors
+                  </ActionButton>
+                )}
+              </div>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
             {requests.map((request) => (
-              <Card key={request.id}>
-                <CardHeader>
+              <Card key={request.id} className="border-none shadow-lg rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <UserAvatar
-                        name={userData?.role === "student" || userData?.role === "aspirant" ? "Mentor" : "Student"}
-                        size="md"
-                      />
+                      <div className="relative">
+                        <UserAvatar
+                          name={userData?.role === "student" || userData?.role === "aspirant" ? "Mentor" : "Student"}
+                          size="lg"
+                          fallbackClassName="bg-gradient-to-br from-purple-500 to-pink-500 text-white"
+                        />
+                        <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-white flex items-center justify-center shadow-sm">
+                          <div className={`h-2.5 w-2.5 rounded-full ${
+                            request.status === "accepted" ? "bg-green-500" :
+                            request.status === "pending" ? "bg-yellow-500" :
+                            "bg-gray-400"
+                          }`} />
+                        </div>
+                      </div>
                       <div>
-                        <CardTitle>
+                        <CardTitle className="text-lg font-bold text-gray-900">
                           {userData?.role === "student" || userData?.role === "aspirant"
                             ? "Mentor Request"
                             : "Student Request"}
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="text-gray-500">
                           Requested on {formatDate(request.requestedDate)}
                         </CardDescription>
                       </div>
@@ -340,17 +360,20 @@ export default function MentorshipPage() {
                   </div>
                 </CardHeader>
                 {request.message && (
-                  <CardContent>
-                    <p className="text-sm">{request.message}</p>
+                  <CardContent className="pt-0 pb-4">
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+                      <p className="text-sm text-gray-700 italic">"{request.message}"</p>
+                    </div>
                   </CardContent>
                 )}
                 {request.status === "pending" && userData?.role === "alumni" && (
-                  <CardContent className="flex gap-2">
+                  <CardContent className="flex gap-3 pt-0">
                     <ActionButton 
                       size="sm" 
                       variant="success"
                       onClick={() => handleAcceptRequest(request.id, request.studentId)}
                       icon={<CheckCircle className="h-4 w-4" />}
+                      className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-full shadow-md"
                     >
                       Accept
                     </ActionButton>
@@ -359,13 +382,14 @@ export default function MentorshipPage() {
                       variant="outline"
                       onClick={() => handleRejectRequest(request.id)}
                       icon={<XCircle />}
+                      className="rounded-full border-2"
                     >
                       Decline
                     </ActionButton>
                   </CardContent>
                 )}
                 {request.status === "accepted" && (
-                  <CardContent className="flex gap-2">
+                  <CardContent className="flex gap-3 pt-0">
                     <ActionButton 
                       size="sm" 
                       variant="primary"
@@ -375,6 +399,7 @@ export default function MentorshipPage() {
                           : request.studentId
                       )}
                       icon={<MessageSquare className="h-4 w-4" />}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-full shadow-md"
                     >
                       Message
                     </ActionButton>
@@ -387,34 +412,44 @@ export default function MentorshipPage() {
 
         {/* Request Mentorship Dialog */}
         <Dialog open={selectedMentor !== null} onOpenChange={(open) => !open && setSelectedMentor(null)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Request Mentorship</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-xl font-bold flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                Request Mentorship
+              </DialogTitle>
+              <DialogDescription className="text-gray-600">
                 Send a mentorship request to {selectedMentor?.displayName}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {selectedMentor && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50">
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
                   <UserAvatar
                     src={selectedMentor.photoURL}
                     name={selectedMentor.displayName}
                     size="lg"
                     verified={selectedMentor.verificationStatus === "approved"}
-                    fallbackClassName="bg-blue-600 text-white font-bold"
+                    fallbackClassName="bg-gradient-to-br from-purple-600 to-pink-600 text-white font-bold"
                   />
                   <div>
-                    <p className="font-semibold">{selectedMentor.displayName}</p>
+                    <p className="font-bold text-gray-900">{selectedMentor.displayName}</p>
                     <p className="text-sm text-gray-600">
                       {mentorProfiles[selectedMentor.id]?.jobTitle || "Alumni"}
                     </p>
+                    {mentorProfiles[selectedMentor.id]?.currentCompany && (
+                      <p className="text-xs text-gray-500">
+                        at {mentorProfiles[selectedMentor.id]?.currentCompany}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Message (Optional)
                 </label>
                 <Textarea
@@ -423,17 +458,19 @@ export default function MentorshipPage() {
                   onChange={(e) => setRequestMessage(e.target.value)}
                   rows={4}
                   maxLength={500}
+                  className="rounded-xl border-2 border-gray-200 focus:border-purple-500 transition-colors resize-none"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-2">
                   {requestMessage.length}/500 characters
                 </p>
               </div>
 
-              <div className="flex gap-2 justify-end">
+              <div className="flex gap-3 justify-end pt-2">
                 <ActionButton 
                   variant="outline" 
                   onClick={() => setSelectedMentor(null)}
                   disabled={submitting}
+                  className="rounded-full border-2"
                 >
                   Cancel
                 </ActionButton>
@@ -443,6 +480,7 @@ export default function MentorshipPage() {
                   loading={submitting}
                   loadingText="Sending..."
                   icon={<MessageSquare />}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-full shadow-lg"
                 >
                   Send Request
                 </ActionButton>

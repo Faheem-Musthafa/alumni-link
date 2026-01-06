@@ -357,7 +357,7 @@ export default function DashboardPage() {
               <p className="text-lg text-blue-100 max-w-2xl leading-relaxed">
                 {userData?.role === "student" && "Discover amazing opportunities, connect with mentors, and take your career to the next level."}
                 {userData?.role === "alumni" && "Share your expertise, post opportunities, and help the next generation succeed."}
-                {userData?.role === "aspirant" && "Get personalized guidance and mentorship to achieve your academic goals."}
+                {userData?.role === "aspirant" && "Get pre-admission guidance from current students and alumni. Connect with mentors to achieve your dream college."}
               </p>
               
               <div className="flex items-center gap-4 pt-2">
@@ -370,16 +370,30 @@ export default function DashboardPage() {
                 >
                   Get Started
                 </ActionButton>
-                <ActionButton 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm"
-                  onClick={() => router.push("/jobs")}
-                  icon={<ArrowRight />}
-                  iconPosition="right"
-                >
-                  Explore Jobs
-                </ActionButton>
+                {userData?.role !== "aspirant" && (
+                  <ActionButton 
+                    size="lg" 
+                    variant="outline" 
+                    className="border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm"
+                    onClick={() => router.push("/jobs")}
+                    icon={<ArrowRight />}
+                    iconPosition="right"
+                  >
+                    Explore Jobs
+                  </ActionButton>
+                )}
+                {userData?.role === "aspirant" && (
+                  <ActionButton 
+                    size="lg" 
+                    variant="outline" 
+                    className="border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm"
+                    onClick={() => router.push("/mentorship")}
+                    icon={<ArrowRight />}
+                    iconPosition="right"
+                  >
+                    Find Mentors
+                  </ActionButton>
+                )}
               </div>
             </div>
             
@@ -499,57 +513,109 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Jobs Card */}
-          <Card 
-            className="relative overflow-hidden border-none shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
-            onClick={() => router.push(userData?.role === "student" ? "/jobs" : "/jobs/my-posts")}
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-green-500/20 to-transparent rounded-bl-full"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <Briefcase className="h-6 w-6 text-white" />
+          {/* Jobs Card - Not for Aspirants */}
+          {userData?.role !== "aspirant" && (
+            <Card 
+              className="relative overflow-hidden border-none shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+              onClick={() => router.push(userData?.role === "student" ? "/jobs" : "/jobs/my-posts")}
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-green-500/20 to-transparent rounded-bl-full"></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Briefcase className="h-6 w-6 text-white" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all" />
                 </div>
-                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                <p className="text-3xl font-bold text-gray-900">
-                  {loadingData ? "..." : stats.jobsCount}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {userData?.role === "student" ? "Available Jobs" : "Posted Jobs"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold text-gray-900">
+                    {loadingData ? "..." : stats.jobsCount}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {userData?.role === "student" ? "Available Jobs" : "Posted Jobs"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Applications Card */}
-          <Card 
-            className="relative overflow-hidden border-none shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
-            onClick={() => router.push(userData?.role === "student" ? "/jobs/my-applications" : "/jobs/my-posts")}
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-orange-500/20 to-transparent rounded-bl-full"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <FileText className="h-6 w-6 text-white" />
+          {/* Browse Students Card - For Aspirants */}
+          {userData?.role === "aspirant" && (
+            <Card 
+              className="relative overflow-hidden border-none shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+              onClick={() => router.push("/users")}
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-green-500/20 to-transparent rounded-bl-full"></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <GraduationCap className="h-6 w-6 text-white" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all" />
                 </div>
-                <Star className="h-5 w-5 text-yellow-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                <p className="text-3xl font-bold text-gray-900">
-                  {loadingData ? "..." : stats.applicationsCount}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {userData?.role === "student" ? "Applications" : "Received"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold text-gray-900">Connect</p>
+                  <p className="text-sm text-gray-500">Browse Students & Alumni</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Applications Card - Not for Aspirants */}
+          {userData?.role !== "aspirant" && (
+            <Card 
+              className="relative overflow-hidden border-none shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+              onClick={() => router.push(userData?.role === "student" ? "/jobs/my-applications" : "/jobs/my-posts")}
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-orange-500/20 to-transparent rounded-bl-full"></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <FileText className="h-6 w-6 text-white" />
+                  </div>
+                  <Star className="h-5 w-5 text-yellow-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold text-gray-900">
+                    {loadingData ? "..." : stats.applicationsCount}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {userData?.role === "student" ? "Applications" : "Received"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Find Mentors Card - For Aspirants */}
+          {userData?.role === "aspirant" && (
+            <Card 
+              className="relative overflow-hidden border-none shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+              onClick={() => router.push("/mentorship")}
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-orange-500/20 to-transparent rounded-bl-full"></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Target className="h-6 w-6 text-white" />
+                  </div>
+                  <Star className="h-5 w-5 text-yellow-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold text-gray-900">Guidance</p>
+                  <p className="text-sm text-gray-500">Get Pre-Admission Help</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Profile Completion */}
@@ -847,9 +913,9 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
                   <Target className="h-5 w-5 text-violet-600" />
-                  Your Preparation Journey
+                  Your Pre-Admission Journey
                 </CardTitle>
-                <CardDescription>Track your college admission progress</CardDescription>
+                <CardDescription>Get guidance for your dream college admission</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Progress Steps */}
@@ -865,19 +931,28 @@ export default function DashboardPage() {
                   </div>
                   
                   <div className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
-                      <span className="text-white text-xs font-bold">2</span>
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${mentorshipStats.activeMentorships > 0 ? 'bg-green-500' : 'bg-blue-500'}`}>
+                      {mentorshipStats.activeMentorships > 0 ? (
+                        <CheckCircle className="h-4 w-4 text-white" />
+                      ) : (
+                        <span className="text-white text-xs font-bold">2</span>
+                      )}
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900">Find Mentors</p>
-                      <p className="text-xs text-gray-500">Connect with college students and alumni</p>
-                      <ActionButton 
-                        size="sm" 
-                        className="mt-2 h-7 text-xs rounded-full bg-blue-600 hover:bg-blue-700"
-                        onClick={() => router.push("/mentorship")}
-                      >
-                        Explore Mentors
-                      </ActionButton>
+                      <p className="font-semibold text-gray-900">Connect with Mentors</p>
+                      <p className="text-xs text-gray-500">Get pre-admission guidance from students & alumni</p>
+                      {mentorshipStats.activeMentorships === 0 && (
+                        <ActionButton 
+                          size="sm" 
+                          className="mt-2 h-7 text-xs rounded-full bg-blue-600 hover:bg-blue-700"
+                          onClick={() => router.push("/mentorship")}
+                        >
+                          Find Mentors
+                        </ActionButton>
+                      )}
+                      {mentorshipStats.activeMentorships > 0 && (
+                        <p className="text-xs text-green-600 mt-1">✓ {mentorshipStats.activeMentorships} mentor(s) connected</p>
+                      )}
                     </div>
                   </div>
                   
@@ -885,9 +960,9 @@ export default function DashboardPage() {
                     <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
                       <span className="text-gray-500 text-xs font-bold">3</span>
                     </div>
-                    <div className="flex-1 opacity-50">
-                      <p className="font-semibold text-gray-900">Explore Colleges</p>
-                      <p className="text-xs text-gray-500">Research and shortlist your dream colleges</p>
+                    <div className="flex-1 opacity-60">
+                      <p className="font-semibold text-gray-900">Ask Questions</p>
+                      <p className="text-xs text-gray-500">Chat with students about campus life & admissions</p>
                     </div>
                   </div>
                   
@@ -895,9 +970,9 @@ export default function DashboardPage() {
                     <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
                       <span className="text-gray-500 text-xs font-bold">4</span>
                     </div>
-                    <div className="flex-1 opacity-50">
-                      <p className="font-semibold text-gray-900">Admission Guidance</p>
-                      <p className="text-xs text-gray-500">Get help with applications and exams</p>
+                    <div className="flex-1 opacity-60">
+                      <p className="font-semibold text-gray-900">Get Admission Tips</p>
+                      <p className="text-xs text-gray-500">Learn about entrance exams & application process</p>
                     </div>
                   </div>
                 </div>
@@ -905,50 +980,67 @@ export default function DashboardPage() {
                 <div className="pt-4 border-t">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-gray-700">Overall Progress</p>
-                    <span className="text-sm font-bold text-violet-600">25%</span>
+                    <span className="text-sm font-bold text-violet-600">
+                      {mentorshipStats.activeMentorships > 0 ? '50%' : '25%'}
+                    </span>
                   </div>
                   <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-linear-to-r from-violet-500 to-purple-600 rounded-full" style={{ width: '25%' }}></div>
+                    <div 
+                      className="h-full bg-gradient-to-r from-violet-500 to-purple-600 rounded-full transition-all duration-500" 
+                      style={{ width: mentorshipStats.activeMentorships > 0 ? '50%' : '25%' }}
+                    ></div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Recommended Mentors/Resources */}
+            {/* Connect with Students & Alumni */}
             <Card className="border-none shadow-lg">
               <CardHeader>
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
                   <Users className="h-5 w-5 text-blue-600" />
-                  Connect with Students
+                  Pre-Admission Guidance
                 </CardTitle>
-                <CardDescription>Get guidance from current college students</CardDescription>
+                <CardDescription>Connect with students and alumni for college insights</CardDescription>
               </CardHeader>
               <CardContent>
-                <EmptyState
-                  icon={Users}
-                  title="Discover Mentors"
-                  description="Connect with students and alumni who can guide you through college admissions"
-                  action={
-                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                      <ActionButton 
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
-                        onClick={() => router.push("/mentorship")}
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        Find Mentors
-                      </ActionButton>
-                      <ActionButton 
-                        variant="outline" 
-                        className="rounded-xl"
-                        onClick={() => router.push("/chat")}
-                      >
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                        Messages
-                      </ActionButton>
+                <div className="space-y-4">
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-900">Students</span>
+                      </div>
+                      <p className="text-xs text-blue-700">Get real campus insights</p>
                     </div>
-                  }
-                  iconClassName="text-blue-600"
-                />
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
+                      <div className="flex items-center gap-2 mb-1">
+                        <GraduationCap className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-900">Alumni</span>
+                      </div>
+                      <p className="text-xs text-purple-700">Learn from their journey</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <ActionButton 
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+                      onClick={() => router.push("/users")}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Browse Students
+                    </ActionButton>
+                    <ActionButton 
+                      className="flex-1" 
+                      variant="outline" 
+                      onClick={() => router.push("/mentorship")}
+                    >
+                      <GraduationCap className="mr-2 h-4 w-4" />
+                      Find Mentors
+                    </ActionButton>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

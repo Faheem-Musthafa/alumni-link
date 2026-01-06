@@ -15,10 +15,11 @@ import { getUserData } from "@/lib/firebase/auth";
 import { handleError } from "@/lib/utils/error-handling";
 import { useEffect, useState } from "react";
 import { User, JobPosting, JobApplication } from "@/types";
-import { getJobPostings } from "@/lib/firebase/jobs";
+import { getJobPostings, updateJobApplication } from "@/lib/firebase/jobs";
+import { getConversationBetweenUsers, createConversation, sendMessage } from "@/lib/firebase/chat";
 import { collection, query, where, getDocs, Firestore } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { Briefcase, MapPin, Users, Eye, Trash2, FileText, Mail, ExternalLink, Calendar, CheckCircle, XCircle, Clock, Plus, TrendingUp } from "lucide-react";
+import { Briefcase, MapPin, Users, Eye, Trash2, FileText, Mail, ExternalLink, Calendar, CheckCircle, XCircle, Clock, Plus, TrendingUp, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // Helper to get db
@@ -140,6 +141,88 @@ export default function MyPostsPage() {
         return "warning";
       default:
         return "pending";
+    }
+  };
+
+  const handleAcceptApplication = async (application: JobApplication & { applicantData?: User }) => {
+    if (!user || !selectedJob) return;
+    
+    try {
+      // Update application status
+      await updateJobApplication(application.id, { status: "accepted" });
+      
+      // Create or get conversation
+      let conversation = await getConversationBetweenUsers(user.uid, application.applicantId);
+      
+      if (!conversation) {
+        const conversationId = await createConversation([user.uid, application.applicantId]);
+        
+        // Send initial message
+        await sendMessage(
+          conversationId,
+          user.uid,
+          application.applicantId,
+          `Congratulations! Your application for "${selectedJob.title}" at ${selectedJob.company} has been accepted! Let's discuss the next steps.`,
+          "text"
+        );
+      } else {
+        // Send message in existing conversation
+        await sendMessage(
+          conversation.id,
+          user.uid,
+          application.applicantId,
+          `Congratulations! Your application for "${selectedJob.title}" at ${selectedJob.company} has been accepted! Let's discuss the next steps.`,
+          "text"
+        );
+      }
+      
+      // Update local state
+      setApplicants(prev => prev.map(app => 
+        app.id === application.id ? { ...app, status: "accepted" } : app
+      ));
+      
+      alert("Application accepted! A message has been sent to the applicant.");
+    } catch (error) {
+      handleError(error, "Failed to accept application");
+      alert("Failed to accept application. Please try again.");
+    }
+  };
+
+  const handleRejectApplication = async (applicationId: string) => {
+    if (!confirm("Are you sure you want to reject this application?")) return;
+    
+    try {
+      await updateJobApplication(applicationId, { status: "rejected" });
+      
+      // Update local state
+      setApplicants(prev => prev.map(app => 
+        app.id === applicationId ? { ...app, status: "rejected" } : app
+      ));
+      
+      alert("Application rejected.");
+    } catch (error) {
+      handleError(error, "Failed to reject application");
+      alert("Failed to reject application. Please try again.");
+    }
+  };
+
+  const handleMessageApplicant = async (applicantId: string) => {
+    if (!user) return;
+    
+    try {
+      // Check if conversation exists
+      let conversation = await getConversationBetweenUsers(user.uid, applicantId);
+      
+      if (!conversation) {
+        // Create new conversation
+        await createConversation([user.uid, applicantId]);
+      }
+      
+      // Navigate to chat page
+      router.push("/chat");
+    } catch (error) {
+      handleError(error, "Failed to start conversation");
+      alert("Failed to start conversation. Please try again.");
     }
   };
 
@@ -422,6 +505,47 @@ export default function MyPostsPage() {
                       <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         Applied on {new Date(application.createdAt).toLocaleDateString()}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+                        {application.status === "pending" && (
+                          <>
+                            <ActionButton
+                              size="sm"
+                              variant="success"
+                              icon={<CheckCircle className="h-4 w-4" />}
+                              onClick={() => handleAcceptApplication(application)}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              Accept
+                            </ActionButton>
+                            <ActionButton
+                              size="sm"
+                              variant="outline"
+                              icon={<XCircle className="h-4 w-4" />}
+                              onClick={() => handleRejectApplication(application.id)}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              Reject
+                            </ActionButton>
+                          </>
+                        )}
+                        {application.status === "accepted" && (
+                          <ActionButton
+                            size="sm"
+                            variant="primary"
+                            icon={<MessageSquare className="h-4 w-4" />}
+                            onClick={() => handleMessageApplicant(application.applicantId)}
+                          >
+                            Message Applicant
+                          </ActionButton>
+                        )}
+                        {application.status === "rejected" && (
+                          <span className="text-sm text-muted-foreground italic">
+                            This application has been rejected
+                          </span>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

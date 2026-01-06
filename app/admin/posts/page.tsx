@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,7 +14,6 @@ import { handleError } from "@/lib/utils/error-handling";
 import { JobPosting } from "@/types";
 import { 
   Briefcase, 
-  ArrowLeft, 
   Search,
   Trash2,
   Eye,
@@ -23,14 +21,20 @@ import {
   Calendar,
   DollarSign,
   AlertTriangle,
-  Filter,
-  Download,
-  FileDown
+  FileDown,
+  RefreshCw,
+  Building2,
+  Clock,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Tag,
+  TrendingUp
 } from "lucide-react";
 import { logAdminActivity } from "@/lib/firebase/adminLogs";
 import { downloadCSV, prepareJobsExport } from "@/lib/utils/exportData";
 
-// Admin authentication check
 function useAdminAuth() {
   const router = useRouter();
   useEffect(() => {
@@ -53,12 +57,11 @@ export default function AdminPostsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   
-  // Pagination helpers
   const totalPages = Math.ceil(filteredJobs.length / pageSize);
   const startRecord = (currentPage - 1) * pageSize + 1;
   const endRecord = Math.min(currentPage * pageSize, filteredJobs.length);
@@ -69,22 +72,28 @@ export default function AdminPostsPage() {
   }, []);
 
   useEffect(() => {
-    // Filter jobs based on search query
-    if (searchQuery.trim() === "") {
-      setFilteredJobs(jobs);
-    } else {
+    let filtered = jobs;
+    
+    if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
-      const filtered = jobs.filter(job => 
+      filtered = filtered.filter(job => 
         job.title?.toLowerCase().includes(query) ||
         job.company?.toLowerCase().includes(query) ||
         job.location?.toLowerCase().includes(query)
       );
-      setFilteredJobs(filtered);
     }
-  }, [searchQuery, jobs]);
+    
+    if (typeFilter !== "all") {
+      filtered = filtered.filter(job => job.type === typeFilter);
+    }
+    
+    setFilteredJobs(filtered);
+    setCurrentPage(1);
+  }, [searchQuery, typeFilter, jobs]);
 
   const loadJobs = async () => {
     try {
+      setLoading(true);
       const { collection, getDocs, orderBy, query } = await import("firebase/firestore");
       const { db } = await import("@/lib/firebase/config");
       
@@ -95,12 +104,35 @@ export default function AdminPostsPage() {
       
       const jobsData = snapshot.docs.map(doc => {
         const data = doc.data();
+        
+        let createdAt = new Date();
+        let updatedAt = new Date();
+        let deadline = undefined;
+        
+        if (data.createdAt) {
+          createdAt = typeof data.createdAt.toDate === 'function' 
+            ? data.createdAt.toDate() 
+            : new Date(data.createdAt);
+        }
+        
+        if (data.updatedAt) {
+          updatedAt = typeof data.updatedAt.toDate === 'function' 
+            ? data.updatedAt.toDate() 
+            : new Date(data.updatedAt);
+        }
+        
+        if (data.deadline) {
+          deadline = typeof data.deadline.toDate === 'function' 
+            ? data.deadline.toDate() 
+            : new Date(data.deadline);
+        }
+        
         return {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          deadline: data.deadline?.toDate(),
+          createdAt,
+          updatedAt,
+          deadline,
         } as unknown as JobPosting;
       });
 
@@ -139,7 +171,6 @@ export default function AdminPostsPage() {
 
       await deleteDoc(doc(db, "jobPostings", selectedJob.id));
 
-      // Log admin activity
       if (auth && auth.currentUser) {
         await logAdminActivity({
           adminId: auth.currentUser.uid,
@@ -177,47 +208,12 @@ export default function AdminPostsPage() {
     }
   };
 
-  // Pagination handlers
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
 
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 7;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 4) {
-        for (let i = 1; i <= 5; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 3) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    return pages;
-  };
-
-  // Export handler
   const handleExport = () => {
     try {
       const exportData = prepareJobsExport(filteredJobs);
@@ -249,21 +245,35 @@ export default function AdminPostsPage() {
     }
   };
 
-  const getTypeBadgeColor = (type: string) => {
+  const getTypeConfig = (type: string) => {
     switch (type) {
-      case "full-time": return "bg-green-500/20 text-green-400 border-green-500/30";
-      case "part-time": return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-      case "internship": return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-      case "contract": return "bg-orange-500/20 text-orange-400 border-orange-500/30";
-      default: return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+      case "full-time": return { color: "from-emerald-500 to-green-500", bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30" };
+      case "part-time": return { color: "from-blue-500 to-cyan-500", bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/30" };
+      case "internship": return { color: "from-purple-500 to-violet-500", bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/30" };
+      case "contract": return { color: "from-amber-500 to-orange-500", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30" };
+      default: return { color: "from-slate-500 to-slate-600", bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/30" };
     }
+  };
+
+  // Stats
+  const stats = {
+    total: jobs.length,
+    fullTime: jobs.filter(j => j.type === "full-time").length,
+    partTime: jobs.filter(j => j.type === "part-time").length,
+    internship: jobs.filter(j => j.type === "internship").length,
+    contract: jobs.filter(j => j.type === "contract").length,
+    referrals: jobs.filter(j => j.isReferral).length,
+    totalApplications: jobs.reduce((sum, j) => sum + (j.applicationsCount || 0), 0),
   };
 
   if (loading) {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center h-96">
-          <LoadingSpinner size="lg" />
+          <div className="flex flex-col items-center gap-4">
+            <LoadingSpinner size="lg" />
+            <p className="text-slate-400">Loading job posts...</p>
+          </div>
         </div>
       </AdminLayout>
     );
@@ -271,288 +281,307 @@ export default function AdminPostsPage() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 lg:p-8 space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-12 w-12 bg-[#1a1f2e] rounded-xl flex items-center justify-center border border-gray-800">
-              <Briefcase className="h-6 w-6 text-white" />
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center">
+                <Briefcase className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-white">Job Posts</h1>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Job Posts Management</h1>
-              <p className="text-gray-400 text-sm">{jobs.length} total job postings</p>
-            </div>
+            <p className="text-slate-400">{jobs.length} job postings on the platform</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={loadJobs}
+              variant="outline"
+              className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              onClick={handleExport}
+              className="bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:opacity-90"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </div>
 
-        {/* Search and Actions */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
-            <Input
-              placeholder="Search by title, company, or location..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-[#1a1f2e] border-gray-800 text-white placeholder:text-gray-500"
-            />
-          </div>
-          <Button variant="outline" className="border-gray-800 text-gray-400 hover:bg-[#1a1f2e]">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button 
-            onClick={handleExport}
-            variant="outline" 
-            className="border-gray-800 text-gray-400 hover:bg-[#1a1f2e]"
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {[
+            { label: "Total", value: stats.total, color: "from-slate-500 to-slate-600" },
+            { label: "Full-Time", value: stats.fullTime, color: "from-emerald-500 to-green-500" },
+            { label: "Part-Time", value: stats.partTime, color: "from-blue-500 to-cyan-500" },
+            { label: "Internship", value: stats.internship, color: "from-purple-500 to-violet-500" },
+            { label: "Contract", value: stats.contract, color: "from-amber-500 to-orange-500" },
+            { label: "Referrals", value: stats.referrals, color: "from-pink-500 to-rose-500" },
+            { label: "Applications", value: stats.totalApplications, color: "from-indigo-500 to-purple-500" },
+          ].map((stat, index) => (
+            <Card key={index} className="p-4 bg-slate-800/30 border-slate-700/50">
+              <p className="text-xs text-slate-400 mb-1">{stat.label}</p>
+              <p className={`text-2xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
+                {stat.value}
+              </p>
+            </Card>
+          ))}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Total Jobs</div>
-            <div className="text-2xl font-bold text-white">{jobs.length}</div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Full-Time</div>
-            <div className="text-2xl font-bold text-green-400">
-              {jobs.filter(j => j.type === "full-time").length}
+        {/* Search and Filters */}
+        <Card className="p-4 bg-slate-800/30 border-slate-700/50">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search by title, company, or location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-slate-900/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-emerald-500/50"
+              />
             </div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Internships</div>
-            <div className="text-2xl font-bold text-purple-400">
-              {jobs.filter(j => j.type === "internship").length}
-            </div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">With Referrals</div>
-            <div className="text-2xl font-bold text-blue-400">
-              {jobs.filter(j => j.isReferral).length}
-            </div>
-          </Card>
-        </div>
-
-        {/* Jobs Table */}
-        <Card className="bg-[#1a1f2e] border-gray-800">
-          <div className="overflow-x-auto">
-            {filteredJobs.length === 0 ? (
-              <div className="p-8 text-center">
-                <Briefcase className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">No job postings found</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead className="border-b border-gray-800">
-                  <tr>
-                    <th className="text-left p-4 text-gray-400 font-medium">Job Details</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Type</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Location</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Applications</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Posted</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedJobs.map((job) => (
-                    <tr key={job.id} className="border-b border-gray-800 hover:bg-[#0f1419] transition-colors">
-                      <td className="p-4">
-                        <div>
-                          <div className="font-medium text-white mb-1">{job.title}</div>
-                          <div className="text-sm text-gray-400">{job.company}</div>
-                          {job.salary && typeof job.salary === 'object' && 'min' in job.salary && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {job.salary.currency} {job.salary.min} - {job.salary.max}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col gap-1">
-                          <Badge className={getTypeBadgeColor(job.type)}>
-                            {job.type}
-                          </Badge>
-                          {job.isReferral && (
-                            <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
-                              Referral
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 text-gray-300">
-                          <MapPin className="h-4 w-4 text-gray-500" />
-                          {job.location}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="text-white font-medium">
-                          {job.applicationsCount || 0}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 text-gray-400 text-sm">
-                          <Calendar className="h-4 w-4" />
-                          {job.createdAt?.toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewJob(job)}
-                            className="border-gray-700 text-gray-300 hover:bg-[#0f1419]"
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                            onClick={() => handleDeleteClick(job)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            {/* Pagination Controls */}
-            {filteredJobs.length > 0 && (
-              <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
-                {/* Results Info */}
-                <div className="text-sm text-gray-400">
-                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredJobs.length)} of {filteredJobs.length} job posts
-                </div>
-
-                {/* Page Size Selector */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">Show:</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                    className="bg-[#1a1f2e] border border-gray-800 rounded px-3 py-1 text-sm text-white"
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-
-                {/* Page Navigation */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-800 text-gray-400 hover:bg-[#1a1f2e] disabled:opacity-50"
-                  >
-                    Previous
-                  </Button>
-
-                  <div className="flex items-center gap-1">
-                    {getPageNumbers().map((pageNum, idx) => (
-                      <React.Fragment key={idx}>
-                        {pageNum === '...' ? (
-                          <span className="px-2 text-gray-500">...</span>
-                        ) : (
-                          <Button
-                            onClick={() => handlePageChange(pageNum as number)}
-                            variant={currentPage === pageNum ? "default" : "outline"}
-                            size="sm"
-                            className={currentPage === pageNum 
-                              ? "bg-blue-600 text-white hover:bg-blue-700" 
-                              : "border-gray-800 text-gray-400 hover:bg-[#1a1f2e]"
-                            }
-                          >
-                            {pageNum}
-                          </Button>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
-
-                  <Button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-800 text-gray-400 hover:bg-[#1a1f2e] disabled:opacity-50"
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="h-10 px-4 rounded-lg bg-slate-900/50 border border-slate-700/50 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            >
+              <option value="all">All Types</option>
+              <option value="full-time">Full-Time</option>
+              <option value="part-time">Part-Time</option>
+              <option value="internship">Internship</option>
+              <option value="contract">Contract</option>
+            </select>
           </div>
         </Card>
+
+        {/* Jobs Grid/List */}
+        {filteredJobs.length === 0 ? (
+          <Card className="p-12 bg-slate-800/30 border-slate-700/50 text-center">
+            <Briefcase className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+            <p className="text-slate-400 text-lg mb-2">No job postings found</p>
+            <p className="text-slate-500 text-sm">Try adjusting your search or filters</p>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {paginatedJobs.map((job) => {
+              const typeConfig = getTypeConfig(job.type);
+              
+              return (
+                <Card 
+                  key={job.id} 
+                  className="p-6 bg-slate-800/30 border-slate-700/50 hover:border-slate-600/50 transition-all group"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    {/* Job Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${typeConfig.color} flex items-center justify-center flex-shrink-0`}>
+                          <Briefcase className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors truncate">
+                            {job.title}
+                          </h3>
+                          <div className="flex items-center gap-2 text-slate-400 text-sm mt-1">
+                            <Building2 className="w-4 h-4" />
+                            <span>{job.company}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 mt-3">
+                            <div className="flex items-center gap-1.5 text-slate-400 text-sm">
+                              <MapPin className="w-4 h-4" />
+                              {job.location}
+                            </div>
+                            {job.salary && typeof job.salary === 'object' && 'min' in job.salary && (
+                              <div className="flex items-center gap-1.5 text-slate-400 text-sm">
+                                <DollarSign className="w-4 h-4" />
+                                {job.salary.currency} {job.salary.min?.toLocaleString()} - {job.salary.max?.toLocaleString()}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1.5 text-slate-400 text-sm">
+                              <Calendar className="w-4 h-4" />
+                              Posted {job.createdAt?.toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Badges & Stats */}
+                    <div className="flex flex-wrap items-center gap-3 lg:flex-shrink-0">
+                      <Badge className={`${typeConfig.bg} ${typeConfig.text} ${typeConfig.border}`}>
+                        {job.type}
+                      </Badge>
+                      {job.isReferral && (
+                        <Badge className="bg-pink-500/10 text-pink-400 border-pink-500/30">
+                          Referral
+                        </Badge>
+                      )}
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/30 rounded-lg">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        <span className="text-white font-medium">{job.applicationsCount || 0}</span>
+                        <span className="text-slate-400 text-sm">apps</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 lg:flex-shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewJob(job)}
+                        className="bg-slate-700/30 border-slate-600/30 text-slate-300 hover:bg-slate-600/30 hover:text-white"
+                      >
+                        <Eye className="h-4 w-4 mr-1.5" />
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                        onClick={() => handleDeleteClick(job)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {filteredJobs.length > 0 && (
+          <Card className="p-4 bg-slate-800/30 border-slate-700/50">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-slate-400">
+                Showing <span className="font-medium text-white">{startRecord}</span> to <span className="font-medium text-white">{endRecord}</span> of <span className="font-medium text-white">{filteredJobs.length}</span> jobs
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 px-3 rounded-lg bg-slate-800/50 border border-slate-700/50 text-white text-sm"
+                >
+                  <option value={5}>5 per page</option>
+                  <option value={10}>10 per page</option>
+                  <option value={25}>25 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-700/50 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="px-3 text-slate-400 text-sm">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-700/50 disabled:opacity-50"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* View Job Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-[#1a1f2e] border-gray-800 text-white">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-slate-900 border-slate-700/50 text-white">
           <DialogHeader>
-            <DialogTitle className="text-white">{selectedJob?.title}</DialogTitle>
-            <DialogDescription className="text-gray-400">{selectedJob?.company}</DialogDescription>
+            <DialogTitle className="text-xl text-white flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getTypeConfig(selectedJob?.type || '').color} flex items-center justify-center`}>
+                <Briefcase className="w-5 h-5 text-white" />
+              </div>
+              {selectedJob?.title}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              {selectedJob?.company}
+            </DialogDescription>
           </DialogHeader>
 
           {selectedJob && (
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-gray-400">Type</div>
-                  <Badge className={getTypeBadgeColor(selectedJob.type)}>
+                <div className="p-4 bg-slate-800/50 rounded-xl">
+                  <div className="text-xs text-slate-400 mb-1">Type</div>
+                  <Badge className={`${getTypeConfig(selectedJob.type).bg} ${getTypeConfig(selectedJob.type).text} ${getTypeConfig(selectedJob.type).border}`}>
                     {selectedJob.type}
                   </Badge>
                 </div>
-                <div>
-                  <div className="text-sm text-gray-400">Location</div>
-                  <div className="font-medium text-white">{selectedJob.location}</div>
+                <div className="p-4 bg-slate-800/50 rounded-xl">
+                  <div className="text-xs text-slate-400 mb-1">Location</div>
+                  <div className="flex items-center gap-1.5 text-white">
+                    <MapPin className="w-4 h-4 text-slate-400" />
+                    {selectedJob.location}
+                  </div>
                 </div>
                 {selectedJob.salary && typeof selectedJob.salary === 'object' && 'min' in selectedJob.salary && (
-                  <div>
-                    <div className="text-sm text-gray-400">Salary</div>
-                    <div className="font-medium text-white">
-                      {selectedJob.salary.currency} {selectedJob.salary.min} - {selectedJob.salary.max}
+                  <div className="p-4 bg-slate-800/50 rounded-xl">
+                    <div className="text-xs text-slate-400 mb-1">Salary Range</div>
+                    <div className="flex items-center gap-1.5 text-white">
+                      <DollarSign className="w-4 h-4 text-slate-400" />
+                      {selectedJob.salary.currency} {selectedJob.salary.min?.toLocaleString()} - {selectedJob.salary.max?.toLocaleString()}
                     </div>
                   </div>
                 )}
+                <div className="p-4 bg-slate-800/50 rounded-xl">
+                  <div className="text-xs text-slate-400 mb-1">Applications</div>
+                  <div className="flex items-center gap-1.5 text-white">
+                    <Users className="w-4 h-4 text-slate-400" />
+                    {selectedJob.applicationsCount || 0} applicants
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <div className="text-sm text-gray-400 mb-2">Description</div>
-                <div className="text-gray-300 whitespace-pre-wrap">{selectedJob.description}</div>
+              <div className="p-4 bg-slate-800/50 rounded-xl">
+                <div className="text-sm text-slate-400 mb-2">Description</div>
+                <div className="text-slate-300 whitespace-pre-wrap">{selectedJob.description}</div>
               </div>
 
               {selectedJob.requirements && selectedJob.requirements.length > 0 && (
-                <div>
-                  <div className="text-sm text-gray-400 mb-2">Requirements</div>
-                  <ul className="list-disc list-inside space-y-1">
+                <div className="p-4 bg-slate-800/50 rounded-xl">
+                  <div className="text-sm text-slate-400 mb-2">Requirements</div>
+                  <ul className="space-y-2">
                     {selectedJob.requirements.map((req, idx) => (
-                      <li key={idx} className="text-gray-300">{req}</li>
+                      <li key={idx} className="flex items-start gap-2 text-slate-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 flex-shrink-0" />
+                        {req}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
 
               {(selectedJob as any).skills && (selectedJob as any).skills.length > 0 && (
-                <div>
-                  <div className="text-sm text-gray-400 mb-2">Skills</div>
+                <div className="p-4 bg-slate-800/50 rounded-xl">
+                  <div className="text-sm text-slate-400 mb-2">Required Skills</div>
                   <div className="flex flex-wrap gap-2">
                     {(selectedJob as any).skills.map((skill: string, idx: number) => (
-                      <Badge key={idx} className="bg-gray-700 text-gray-300 border-gray-600">{skill}</Badge>
+                      <Badge key={idx} className="bg-slate-700/50 text-slate-300 border-slate-600/50">
+                        <Tag className="w-3 h-3 mr-1" />
+                        {skill}
+                      </Badge>
                     ))}
                   </div>
                 </div>
@@ -561,7 +590,11 @@ export default function AdminPostsPage() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewDialogOpen(false)} className="border-gray-700 text-gray-300 hover:bg-[#0f1419]">
+            <Button 
+              variant="outline" 
+              onClick={() => setViewDialogOpen(false)} 
+              className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
+            >
               Close
             </Button>
           </DialogFooter>
@@ -570,28 +603,30 @@ export default function AdminPostsPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-[#1a1f2e] border-gray-800 text-white">
+        <DialogContent className="bg-slate-900 border-slate-700/50 text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-400">
-              <AlertTriangle className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-3 text-white">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              </div>
               Delete Job Post
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Are you sure you want to delete "{selectedJob?.title}" at {selectedJob?.company}? This action cannot be undone.
+            <DialogDescription className="text-slate-400">
+              Are you sure you want to delete <span className="text-white font-medium">&quot;{selectedJob?.title}&quot;</span> at {selectedJob?.company}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
               disabled={submitting}
-              className="border-gray-700 text-gray-300 hover:bg-[#0f1419]"
+              className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
             >
               Cancel
             </Button>
             <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-500 hover:bg-red-600 text-white"
               onClick={handleDeleteJob}
               disabled={submitting}
             >

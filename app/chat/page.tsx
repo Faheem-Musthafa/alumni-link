@@ -376,19 +376,19 @@ export default function ChatPage() {
 
   return (
     <MainLayout>
-      <div className="h-[calc(100vh-80px)] flex bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="h-[calc(100vh-80px)] flex bg-white rounded-2xl shadow-xl border-none overflow-hidden">
         {/* Sidebar */}
-        <div className={`w-full md:w-80 lg:w-96 border-r flex flex-col bg-gray-50 ${selectedConversation ? "hidden md:flex" : "flex"}`}>
+        <div className={`w-full md:w-80 lg:w-96 border-r flex flex-col bg-gradient-to-b from-gray-50 to-white ${selectedConversation ? "hidden md:flex" : "flex"}`}>
           {/* Header */}
-          <div className="p-4 bg-white border-b">
-            <h1 className="text-xl font-bold text-gray-900 mb-3">Messages</h1>
+          <div className="p-5 bg-white border-b shadow-sm">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Messages</h1>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-gray-50 border-gray-200"
+                className="pl-12 h-11 rounded-xl bg-gray-50 border-2 border-gray-200 focus:border-blue-500 transition-colors"
               />
             </div>
           </div>
@@ -397,32 +397,32 @@ export default function ChatPage() {
           <div className="flex border-b bg-white">
             <button
               onClick={() => setActiveTab("inbox")}
-              className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+              className={`flex-1 py-3.5 px-4 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
                 activeTab === "inbox"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-gradient-to-t from-blue-50 to-transparent"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
             >
               <Inbox className="h-4 w-4" />
               Inbox
               {inboxConversations.length > 0 && (
-                <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full">
+                <span className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs px-2.5 py-0.5 rounded-full font-bold shadow-sm">
                   {inboxConversations.length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab("archived")}
-              className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+              className={`flex-1 py-3.5 px-4 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
                 activeTab === "archived"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-gradient-to-t from-blue-50 to-transparent"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
             >
               <Archive className="h-4 w-4" />
               Archived
               {archivedConversations.length > 0 && (
-                <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                <span className="bg-gray-200 text-gray-700 text-xs px-2.5 py-0.5 rounded-full font-bold">
                   {archivedConversations.length}
                 </span>
               )}
@@ -437,17 +437,17 @@ export default function ChatPage() {
               </div>
             ) : displayedConversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-5 shadow-inner">
                   {activeTab === "inbox" ? (
-                    <MessageSquare className="h-8 w-8 text-gray-400" />
+                    <MessageSquare className="h-10 w-10 text-gray-400" />
                   ) : (
-                    <Archive className="h-8 w-8 text-gray-400" />
+                    <Archive className="h-10 w-10 text-gray-400" />
                   )}
                 </div>
-                <p className="text-gray-600 font-medium">
+                <p className="text-lg font-semibold text-gray-700">
                   {activeTab === "inbox" ? "No conversations yet" : "No archived chats"}
                 </p>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-gray-400 mt-2">
                   {activeTab === "inbox"
                     ? "Start a conversation from a user profile"
                     : "Archived conversations will appear here"}
@@ -467,8 +467,8 @@ export default function ChatPage() {
                       onClick={() => setSelectedConversation(conv)}
                       className={`p-4 cursor-pointer transition-all border-b border-gray-100 ${
                         isSelected
-                          ? "bg-blue-50 border-l-4 border-l-blue-500"
-                          : "hover:bg-white border-l-4 border-l-transparent"
+                          ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500"
+                          : "hover:bg-white border-l-4 border-l-transparent hover:shadow-sm"
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -657,11 +657,11 @@ export default function ChatPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-gradient-to-b from-gray-50 to-white">
-              <div className="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center mb-6">
-                <MessageSquare className="h-12 w-12 text-blue-400" />
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-gradient-to-b from-gray-50 via-white to-gray-50">
+              <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mb-6 shadow-lg">
+                <MessageSquare className="h-14 w-14 text-blue-500" />
               </div>
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">Select a conversation</h2>
+              <h2 className="text-2xl font-bold text-gray-800 mb-3">Select a conversation</h2>
               <p className="text-gray-500 max-w-sm">Choose from your existing conversations or start a new one from a user profile</p>
             </div>
           )}

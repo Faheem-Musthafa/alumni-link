@@ -18,16 +18,19 @@ import { getUserReports, updateReportStatus } from "@/lib/firebase/reports";
 import { UserReport } from "@/types";
 import { 
   AlertTriangle, 
-  ArrowLeft, 
   CheckCircle, 
   XCircle,
-  User,
   Clock,
   Search,
-  Filter,
-  Download,
   Shield,
-  FileDown
+  FileDown,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquareWarning,
+  Flag,
+  Calendar,
+  User
 } from "lucide-react";
 import { logAdminActivity } from "@/lib/firebase/adminLogs";
 import { downloadCSV, prepareReportsExport } from "@/lib/utils/exportData";
@@ -186,24 +189,6 @@ export default function ReportsPage() {
     }
   };
 
-  const getAvatarColor = (index: number) => {
-    const colors = [
-      "bg-pink-500",
-      "bg-yellow-500",
-      "bg-purple-500",
-      "bg-green-500",
-      "bg-blue-500",
-      "bg-orange-500",
-      "bg-cyan-500",
-      "bg-red-500",
-    ];
-    return colors[index % colors.length];
-  };
-
-  const getUserInitial = (name: string) => {
-    return name ? name.charAt(0).toUpperCase() : "U";
-  };
-
   // Pagination helpers
   const totalPages = Math.ceil(filteredReports.length / pageSize);
   const startRecord = (currentPage - 1) * pageSize + 1;
@@ -219,34 +204,6 @@ export default function ReportsPage() {
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(1);
-  };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 7;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 4) {
-        for (let i = 1; i <= 5; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 3) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    return pages;
   };
 
   // Export handler
@@ -294,243 +251,250 @@ export default function ReportsPage() {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <LoadingSpinner size="lg" />
+          <div className="flex flex-col items-center gap-4">
+            <LoadingSpinner size="lg" />
+            <p className="text-slate-400">Loading reports...</p>
+          </div>
         </div>
       </AdminLayout>
     );
   }
 
-  const pendingReports = reports.filter(r => r.status === "pending");
-  const resolvedReports = reports.filter(r => r.status === "resolved");
-  const dismissedReports = reports.filter(r => r.status === "dismissed");
+  const stats = {
+    total: reports.length,
+    pending: reports.filter(r => r.status === "pending").length,
+    resolved: reports.filter(r => r.status === "resolved").length,
+    dismissed: reports.filter(r => r.status === "dismissed").length,
+  };
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case "pending": return { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30", icon: Clock };
+      case "resolved": return { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30", icon: CheckCircle };
+      case "dismissed": return { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/30", icon: XCircle };
+      default: return { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/30", icon: Clock };
+    }
+  };
 
   return (
     <AdminLayout>
-      <div className="p-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link href="/admin">
-              <Button variant="outline" size="icon" className="bg-[#1a1f2e] border-gray-800 text-white hover:bg-gray-800">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-white">User Reports</h1>
-              <p className="text-gray-400 text-sm">Manage and review user reports</p>
+      <div className="p-4 lg:p-8 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center">
+                <Flag className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-white">User Reports</h1>
             </div>
+            <p className="text-slate-400">Manage and review user reports</p>
           </div>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search by user name or reason..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-[#1a1f2e] border-gray-800 text-white pl-10"
-            />
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={loadReports}
+              variant="outline"
+              className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              onClick={handleExport}
+              className="bg-gradient-to-r from-red-500 to-rose-500 text-white hover:opacity-90"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
-          <Button variant="outline" className="bg-[#1a1f2e] border-gray-800 text-white hover:bg-gray-800">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button 
-            onClick={handleExport}
-            variant="outline" 
-            className="bg-[#1a1f2e] border-gray-800 text-white hover:bg-gray-800"
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Total Reports</div>
-            <div className="text-2xl font-bold text-white">{reports.length}</div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Pending</div>
-            <div className="text-2xl font-bold text-yellow-400">{pendingReports.length}</div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Resolved</div>
-            <div className="text-2xl font-bold text-green-400">{resolvedReports.length}</div>
-          </Card>
-          <Card className="bg-[#1a1f2e] border-gray-800 p-4">
-            <div className="text-sm text-gray-400 mb-1">Dismissed</div>
-            <div className="text-2xl font-bold text-gray-400">{dismissedReports.length}</div>
-          </Card>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: "Total Reports", value: stats.total, color: "from-slate-500 to-slate-600" },
+            { label: "Pending", value: stats.pending, color: "from-amber-500 to-orange-500", urgent: stats.pending > 0 },
+            { label: "Resolved", value: stats.resolved, color: "from-emerald-500 to-green-500" },
+            { label: "Dismissed", value: stats.dismissed, color: "from-slate-500 to-slate-600" },
+          ].map((stat, index) => (
+            <Card key={index} className={`p-4 bg-slate-800/30 border-slate-700/50 ${stat.urgent ? 'ring-2 ring-amber-500/30' : ''}`}>
+              <p className="text-xs text-slate-400 mb-1">{stat.label}</p>
+              <p className={`text-2xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
+                {stat.value}
+              </p>
+              {stat.urgent && <p className="text-xs text-amber-400 mt-1">Needs attention</p>}
+            </Card>
+          ))}
         </div>
 
-        {/* Reports Table */}
-        <Card className="bg-[#1a1f2e] border-gray-800">
-          <div className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Reported User</th>
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Reported By</th>
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Reason</th>
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Date</th>
-                    <th className="text-left py-4 px-4 text-sm font-medium text-gray-400">Status</th>
-                    <th className="text-right py-4 px-4 text-sm font-medium text-gray-400">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReports.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-gray-400">
-                        <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No reports found</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedReports.map((report, index) => (
-                      <tr key={report.id} className="border-b border-gray-800 hover:bg-gray-800/30 transition-colors">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 ${getAvatarColor(index)} rounded-full flex items-center justify-center text-white font-semibold`}>
-                              {getUserInitial(report.reportedUserName)}
-                            </div>
-                            <div>
-                              <div className="text-white font-medium">{report.reportedUserName}</div>
-                              <div className="text-gray-400 text-xs">ID: {report.reportedUserId.slice(0, 8)}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-white">{report.reporterName}</div>
-                          <div className="text-gray-400 text-xs">{report.reportedBy.slice(0, 8)}</div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-white font-medium">{report.reason}</div>
-                          <div className="text-gray-400 text-xs line-clamp-1">{report.description}</div>
-                          {report.type === "chat" && (
-                            <Badge variant="outline" className="mt-1 text-xs bg-blue-500/10 text-blue-400 border-blue-500/30">
-                              From Chat
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 text-gray-300 text-sm">
-                          {formatDate(report.createdAt)}
-                        </td>
-                        <td className="py-4 px-4">
-                          <Badge variant="outline" className={getStatusBadgeColor(report.status)}>
-                            {report.status}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          {report.status === "pending" && (
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleReview(report, "resolved")}
-                                className="bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Resolve
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleReview(report, "dismissed")}
-                                className="bg-gray-500/10 border-gray-500/30 text-gray-400 hover:bg-gray-500/20"
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Dismiss
-                              </Button>
-                            </div>
-                          )}
-                          {report.status !== "pending" && (
-                            <span className="text-gray-500 text-sm">{report.reviewedBy}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+        {/* Search and Filters */}
+        <Card className="p-4 bg-slate-800/30 border-slate-700/50">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search by user name or reason..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="pl-10 bg-slate-900/50 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-red-500/50"
+              />
             </div>
-
-            {/* Pagination */}
-            {filteredReports.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-800">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-sm text-gray-400">
-                    Showing {startRecord} to {endRecord} of {filteredReports.length} reports
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-400">Rows per page:</span>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                      className="bg-[#0f1419] border border-gray-800 text-white rounded px-2 py-1 text-sm"
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 text-gray-400 hover:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  
-                  {getPageNumbers().map((page, index) => (
-                    page === '...' ? (
-                      <span key={`ellipsis-${index}`} className="px-3 py-1 text-gray-400">...</span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page as number)}
-                        className={`px-3 py-1 rounded text-sm ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  ))}
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 text-gray-400 hover:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </Card>
+
+        {/* Reports List */}
+        {filteredReports.length === 0 ? (
+          <Card className="p-12 bg-slate-800/30 border-slate-700/50 text-center">
+            <AlertTriangle className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+            <p className="text-slate-400 text-lg mb-2">No reports found</p>
+            <p className="text-slate-500 text-sm">No user reports have been submitted yet</p>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {paginatedReports.map((report, index) => {
+              const statusConfig = getStatusConfig(report.status);
+              const StatusIcon = statusConfig.icon;
+              
+              return (
+                <Card key={report.id} className="p-6 bg-slate-800/30 border-slate-700/50 hover:border-slate-600/50 transition-all">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Report Info */}
+                    <div className="flex-1">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center flex-shrink-0`}>
+                          <span className="text-white font-bold text-lg">
+                            {report.reportedUserName?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="text-lg font-semibold text-white">{report.reportedUserName}</h3>
+                            <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} flex items-center gap-1`}>
+                              <StatusIcon className="w-3 h-3" />
+                              {report.status}
+                            </Badge>
+                            {report.type === "chat" && (
+                              <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30">
+                                <MessageSquareWarning className="w-3 h-3 mr-1" />
+                                From Chat
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-3">
+                            <User className="w-4 h-4" />
+                            Reported by: {report.reporterName}
+                          </div>
+                          
+                          {/* Report Reason */}
+                          <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700/30 mb-3">
+                            <h4 className="text-sm font-semibold text-white mb-2">{report.reason}</h4>
+                            <p className="text-sm text-slate-400">{report.description}</p>
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5 text-slate-500 text-sm">
+                            <Calendar className="w-4 h-4" />
+                            {formatDate(report.createdAt)}
+                          </div>
+                          
+                          {/* Review Info */}
+                          {report.status !== "pending" && report.reviewedBy && (
+                            <div className="mt-3 p-3 bg-slate-900/30 rounded-lg">
+                              <p className="text-xs text-slate-500">
+                                Reviewed by <span className="text-slate-400">{report.reviewedBy}</span>
+                              </p>
+                              {report.action && (
+                                <p className="text-sm text-slate-400 mt-1">{report.action}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    {report.status === "pending" && (
+                      <div className="flex lg:flex-col gap-2 lg:flex-shrink-0">
+                        <Button
+                          onClick={() => handleReview(report, "resolved")}
+                          className="bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:opacity-90"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1.5" />
+                          Resolve
+                        </Button>
+                        <Button
+                          onClick={() => handleReview(report, "dismissed")}
+                          variant="outline"
+                          className="bg-slate-700/50 border-slate-600/50 text-slate-300 hover:bg-slate-600/50"
+                        >
+                          <XCircle className="w-4 h-4 mr-1.5" />
+                          Dismiss
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {filteredReports.length > 0 && (
+          <Card className="p-4 bg-slate-800/30 border-slate-700/50">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-slate-400">
+                Showing <span className="font-medium text-white">{startRecord}</span> to <span className="font-medium text-white">{endRecord}</span> of <span className="font-medium text-white">{filteredReports.length}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={pageSize}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                  className="h-9 px-3 rounded-lg bg-slate-800/50 border border-slate-700/50 text-white text-sm"
+                >
+                  <option value={5}>5 per page</option>
+                  <option value={10}>10 per page</option>
+                  <option value={25}>25 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-700/50 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="px-3 text-slate-400 text-sm">{currentPage} / {totalPages || 1}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    className="bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-700/50 disabled:opacity-50"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Review Dialog */}
       <Dialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
-        <DialogContent className="bg-[#1a1f2e] border-gray-800 text-white">
+        <DialogContent className="bg-slate-900 border-slate-700/50 text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">
+            <DialogTitle className="text-xl text-white flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${reviewAction === "resolved" ? "bg-gradient-to-br from-emerald-500 to-green-500" : "bg-gradient-to-br from-slate-600 to-slate-700"}`}>
+                {reviewAction === "resolved" ? <CheckCircle className="w-5 h-5 text-white" /> : <XCircle className="w-5 h-5 text-white" />}
+              </div>
               {reviewAction === "resolved" ? "Resolve" : "Dismiss"} Report
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-slate-400">
               {reviewAction === "resolved"
                 ? "Mark this report as resolved and provide action taken"
                 : "Dismiss this report and provide a reason"}
@@ -539,42 +503,42 @@ export default function ReportsPage() {
 
           {selectedReport && (
             <div className="space-y-4 py-4">
-              <div className="bg-gray-800/50 rounded-lg p-4 space-y-2">
+              <div className="p-4 bg-slate-800/50 rounded-xl space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Reported User:</span>
+                  <span className="text-slate-400">Reported User:</span>
                   <span className="text-white font-medium">{selectedReport.reportedUserName}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Reported By:</span>
+                  <span className="text-slate-400">Reported By:</span>
                   <span className="text-white">{selectedReport.reporterName}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Reason:</span>
+                  <span className="text-slate-400">Reason:</span>
                   <span className="text-white">{selectedReport.reason}</span>
                 </div>
               </div>
 
               <div>
-                <p className="text-sm text-gray-400 mb-2">Description:</p>
-                <p className="text-white text-sm bg-gray-800/30 rounded p-3">
+                <p className="text-sm text-slate-400 mb-2">Description:</p>
+                <p className="text-white text-sm bg-slate-800/30 rounded-lg p-3">
                   {selectedReport.description}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-white">Action Notes *</Label>
+                <Label className="text-slate-300">Action Notes *</Label>
                 <Textarea
                   value={actionNote}
                   onChange={(e) => setActionNote(e.target.value)}
                   placeholder="Provide details about the action taken..."
                   rows={4}
-                  className="bg-[#0f1419] border-gray-800 text-white"
+                  className="bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
               </div>
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <Button
               variant="outline"
               onClick={() => {
@@ -582,7 +546,7 @@ export default function ReportsPage() {
                 setReviewAction(null);
               }}
               disabled={submitting}
-              className="bg-[#0f1419] border-gray-800 text-white hover:bg-gray-800"
+              className="bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50"
             >
               Cancel
             </Button>
@@ -590,8 +554,8 @@ export default function ReportsPage() {
               onClick={handleSubmitReview}
               disabled={submitting}
               className={reviewAction === "resolved" 
-                ? "bg-green-500 hover:bg-green-600 text-white" 
-                : "bg-gray-600 hover:bg-gray-700 text-white"}
+                ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:opacity-90" 
+                : "bg-slate-600 hover:bg-slate-700 text-white"}
             >
               {submitting ? (
                 <div className="flex items-center">
